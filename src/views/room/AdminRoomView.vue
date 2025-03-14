@@ -496,7 +496,7 @@ export default {
 
 .progress {
   height: 100%;
-  background-color: theme('colors.primary');
+  background-color: #FF4081;
   border-radius: 4px;
   transition: width 0.3s ease;
 }
