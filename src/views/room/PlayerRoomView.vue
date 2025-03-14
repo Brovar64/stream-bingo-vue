@@ -78,19 +78,20 @@
         
         <div v-else>
           <div class="bingo-grid" :style="`grid-template-columns: repeat(${gridSize}, 1fr);`">
-            <div 
-              v-for="row in gridSize" 
-              v-for="col in gridSize" 
-              :key="`${row-1}_${col-1}`"
-              :class="['bingo-cell', getCellClasses(`${row-1}_${col-1}`)]"
-              @click="markCell(row-1, col-1)"
-            >
-              <div class="bingo-cell-content">
-                {{ getCellWord(`${row-1}_${col-1}`) }}
+            <template v-for="row in gridSize" :key="`row-${row}`">
+              <div 
+                v-for="col in gridSize" 
+                :key="`${row-1}_${col-1}`"
+                :class="['bingo-cell', getCellClasses(`${row-1}_${col-1}`)]"
+                @click="markCell(row-1, col-1)"
+              >
+                <div class="bingo-cell-content">
+                  {{ getCellWord(`${row-1}_${col-1}`) }}
+                </div>
+                <div v-if="getCellState(`${row-1}_${col-1}`) === 'approved'" class="cell-status-icon approved">✓</div>
+                <div v-else-if="getCellState(`${row-1}_${col-1}`) === 'pending'" class="cell-status-icon pending">⌛</div>
               </div>
-              <div v-if="getCellState(`${row-1}_${col-1}`) === 'approved'" class="cell-status-icon approved">✓</div>
-              <div v-else-if="getCellState(`${row-1}_${col-1}`) === 'pending'" class="cell-status-icon pending">⌛</div>
-            </div>
+            </template>
           </div>
           
           <div class="text-center mt-4">
