@@ -88,6 +88,22 @@
               </div>
             </div>
             
+            <div class="flex flex-wrap gap-3 mb-4">
+              <button 
+                @click="showImportModal = true" 
+                class="btn bg-background-lighter hover:bg-gray-700 text-white"
+              >
+                Import Words
+              </button>
+              
+              <button 
+                @click="showPasteModal = true" 
+                class="btn bg-background-lighter hover:bg-gray-700 text-white"
+              >
+                Paste Multiple Words
+              </button>
+            </div>
+            
             <form @submit.prevent="addWord" class="mb-4">
               <div class="flex">
                 <input 
@@ -260,6 +276,127 @@
         </div>
       </div>
     </div>
+    
+    <!-- Import From Word Set Modal -->
+    <div v-if="showImportModal" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
+      <div class="bg-background-card rounded-lg shadow-lg w-full max-w-md p-6">
+        <div class="flex justify-between items-center mb-6">
+          <h2 class="text-xl font-bold">Import from Word Set</h2>
+          <button @click="showImportModal = false" class="text-gray-400 hover:text-white text-xl">
+            ✕
+          </button>
+        </div>
+        
+        <div v-if="wordSets.length === 0" class="text-center py-4 mb-6">
+          <p class="text-gray-400 mb-2">You don't have any word sets yet.</p>
+          <router-link to="/word-sets" class="text-primary hover:text-primary-light">
+            Create a word set first
+          </router-link>
+        </div>
+        
+        <div v-else>
+          <div class="form-group mb-6">
+            <label for="wordSetSelect" class="block text-sm text-gray-400 mb-2">Select a Word Set</label>
+            <select 
+              id="wordSetSelect" 
+              v-model="selectedWordSetId" 
+              class="form-control w-full"
+            >
+              <option v-for="(set, index) in wordSets" :key="index" :value="index">
+                {{ set.name }} ({{ set.words.length }} words)
+              </option>
+            </select>
+          </div>
+          
+          <div v-if="selectedWordSetId !== null" class="mb-6">
+            <div class="flex justify-between items-center mb-2">
+              <h3 class="text-sm text-gray-400">Word List Preview</h3>
+              <span class="text-xs text-gray-500">{{ wordSets[selectedWordSetId].words.length }} words</span>
+            </div>
+            <div class="bg-background-lighter p-3 rounded h-40 overflow-y-auto">
+              <div v-for="(word, wordIndex) in wordSets[selectedWordSetId].words.slice(0, 10)" :key="wordIndex" class="text-sm mb-1">
+                {{ word }}
+              </div>
+              <div v-if="wordSets[selectedWordSetId].words.length > 10" class="text-xs text-gray-500 italic mt-2">
+                And {{ wordSets[selectedWordSetId].words.length - 10 }} more...
+              </div>
+            </div>
+          </div>
+          
+          <div class="flex justify-end space-x-3">
+            <button 
+              @click="showImportModal = false" 
+              class="btn bg-background-lighter hover:bg-gray-700 text-white"
+            >
+              Cancel
+            </button>
+            <button 
+              @click="importWordSet" 
+              class="btn btn-primary"
+              :disabled="selectedWordSetId === null"
+            >
+              Import Words
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Paste Multiple Words Modal -->
+    <div v-if="showPasteModal" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
+      <div class="bg-background-card rounded-lg shadow-lg w-full max-w-2xl p-6">
+        <div class="flex justify-between items-center mb-6">
+          <h2 class="text-xl font-bold">Paste Multiple Words</h2>
+          <button @click="showPasteModal = false" class="text-gray-400 hover:text-white text-xl">
+            ✕
+          </button>
+        </div>
+        
+        <div class="mb-6">
+          <p class="text-sm text-gray-400 mb-2">
+            Paste words or phrases, one per line. Empty lines will be ignored.
+          </p>
+          <textarea 
+            v-model="multipleWords" 
+            class="form-control w-full h-48 font-mono"
+            placeholder="Enter each word or phrase on a new line..."
+          ></textarea>
+        </div>
+        
+        <div class="flex items-center justify-between mb-6">
+          <label for="wordListFile" class="btn bg-background-lighter hover:bg-gray-700 text-white cursor-pointer">
+            Import from TXT File
+          </label>
+          <input 
+            type="file" 
+            id="wordListFile" 
+            accept=".txt" 
+            @change="handleFileImport" 
+            class="hidden"
+          >
+          
+          <div class="text-sm text-gray-400">
+            <span class="font-bold">{{ parsedWords.length }}</span> words detected
+          </div>
+        </div>
+        
+        <div class="flex justify-end space-x-3">
+          <button 
+            @click="showPasteModal = false" 
+            class="btn bg-background-lighter hover:bg-gray-700 text-white"
+          >
+            Cancel
+          </button>
+          <button 
+            @click="addMultipleWords" 
+            class="btn btn-primary"
+            :disabled="parsedWords.length === 0"
+          >
+            Add Words
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -284,6 +421,11 @@ export default {
     const loading = ref(true)
     const newWord = ref('')
     const selectedPlayer = ref(null)
+    const showImportModal = ref(false)
+    const showPasteModal = ref(false)
+    const selectedWordSetId = ref(null)
+    const multipleWords = ref('')
+    const wordSets = ref([])
     
     // Computed properties
     const roomData = computed(() => roomStore.currentRoom)
@@ -292,12 +434,21 @@ export default {
     const wordCount = computed(() => roomData.value?.words?.length || 0)
     const requiredWords = computed(() => roomStore.requiredWords)
     
+    const parsedWords = computed(() => {
+      if (!multipleWords.value.trim()) return []
+      return multipleWords.value
+        .split('\n')
+        .map(word => word.trim())
+        .filter(word => word.length > 0)
+    })
+    
     // Load room data on component mount
     onMounted(async () => {
       loading.value = true
       
       try {
         await roomStore.loadRoom(roomId)
+        loadWordSets()
         loading.value = false
       } catch (error) {
         console.error('Error loading room:', error)
@@ -305,6 +456,66 @@ export default {
         router.push('/dashboard')
       }
     })
+    
+    // Load saved word sets
+    function loadWordSets() {
+      const storedSets = localStorage.getItem('bingoWordSets')
+      if (storedSets) {
+        try {
+          wordSets.value = JSON.parse(storedSets)
+        } catch (error) {
+          console.error('Failed to parse word sets:', error)
+          wordSets.value = []
+        }
+      }
+    }
+    
+    // Handle file import
+    function handleFileImport(event) {
+      const file = event.target.files[0]
+      if (!file) return
+      
+      const reader = new FileReader()
+      reader.onload = e => {
+        multipleWords.value = e.target.result
+      }
+      reader.onerror = () => {
+        notificationStore.showNotification('Failed to read file', 'error')
+      }
+      reader.readAsText(file)
+    }
+    
+    // Import words from a saved word set
+    async function importWordSet() {
+      if (selectedWordSetId.value === null) return
+      
+      const wordSet = wordSets.value[selectedWordSetId.value]
+      if (!wordSet || !wordSet.words || wordSet.words.length === 0) {
+        notificationStore.showNotification('Selected word set is empty', 'error')
+        return
+      }
+      
+      // Add words from the set
+      const result = await roomStore.addMultipleWords(wordSet.words)
+      
+      if (result) {
+        notificationStore.showNotification(`Imported ${wordSet.words.length} words from "${wordSet.name}"`, 'success')
+        showImportModal.value = false
+      }
+    }
+    
+    // Add multiple words at once
+    async function addMultipleWords() {
+      if (parsedWords.value.length === 0) return
+      
+      const result = await roomStore.addMultipleWords(parsedWords.value)
+      
+      if (result) {
+        notificationStore.showNotification(`Added ${parsedWords.value.length} words`, 'success')
+        multipleWords.value = ''
+        showPasteModal.value = false
+      }
+    }
     
     // Cleanup on component unmount
     onUnmounted(() => {
@@ -425,6 +636,12 @@ export default {
       roomData,
       newWord,
       selectedPlayer,
+      showImportModal,
+      showPasteModal,
+      selectedWordSetId,
+      multipleWords,
+      wordSets,
+      parsedWords,
       isRoomSetup,
       isRoomActive,
       wordCount,
@@ -439,7 +656,10 @@ export default {
       formatTime,
       getCellClasses,
       getCellWord,
-      copyRoomCode
+      copyRoomCode,
+      handleFileImport,
+      importWordSet,
+      addMultipleWords
     }
   }
 }
