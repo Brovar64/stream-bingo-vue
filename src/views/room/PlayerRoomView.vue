@@ -401,7 +401,7 @@ export default {
 .status-count {
   font-size: 1.5rem;
   font-weight: bold;
-  color: theme('colors.primary');
+  color: #FF4081;
 }
 
 .waiting-animation {
@@ -420,7 +420,7 @@ export default {
 .dot {
   width: 12px;
   height: 12px;
-  background-color: theme('colors.primary');
+  background-color: #FF4081;
   border-radius: 50%;
   animation: dot-pulse 1.5s infinite ease-in-out;
 }
