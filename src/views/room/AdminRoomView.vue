@@ -228,16 +228,17 @@
             
             <div class="flex justify-center">
               <div class="bingo-grid" :style="`grid-template-columns: repeat(${roomData.gridSize}, 1fr);`">
-                <div 
-                  v-for="row in roomData.gridSize" 
-                  v-for="col in roomData.gridSize" 
-                  :key="`${row-1}_${col-1}`"
-                  :class="['bingo-cell', getCellClasses(`${row-1}_${col-1}`)]"
-                >
-                  <div class="bingo-cell-content">
-                    {{ getCellWord(`${row-1}_${col-1}`) }}
+                <template v-for="row in roomData.gridSize" :key="`row-${row}`">
+                  <div 
+                    v-for="col in roomData.gridSize" 
+                    :key="`${row-1}_${col-1}`"
+                    :class="['bingo-cell', getCellClasses(`${row-1}_${col-1}`)]"
+                  >
+                    <div class="bingo-cell-content">
+                      {{ getCellWord(`${row-1}_${col-1}`) }}
+                    </div>
                   </div>
-                </div>
+                </template>
               </div>
             </div>
           </div>
