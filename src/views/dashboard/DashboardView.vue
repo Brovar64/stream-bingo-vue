@@ -2,9 +2,14 @@
   <div class="container py-8">
     <div class="flex justify-between items-center mb-8">
       <h1 class="title">Dashboard</h1>
-      <button @click="logout" class="btn bg-background-lighter hover:bg-gray-700 text-white">
-        Logout
-      </button>
+      <div class="flex space-x-4">
+        <router-link to="/word-sets" class="btn bg-primary hover:bg-primary-dark text-white">
+          Manage Word Sets
+        </router-link>
+        <button @click="logout" class="btn bg-background-lighter hover:bg-gray-700 text-white">
+          Logout
+        </button>
+      </div>
     </div>
     
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -42,6 +47,19 @@
               <option value="4">4x4 (Medium)</option>
               <option value="5">5x5 (Standard)</option>
             </select>
+          </div>
+          
+          <div class="form-group" v-if="wordSets.length > 0">
+            <label for="wordSet">Word Set (Optional)</label>
+            <select id="wordSet" v-model="newRoom.wordSetId" class="form-control">
+              <option value="">None (Add words manually)</option>
+              <option v-for="set in wordSets" :key="set.id" :value="set.id">
+                {{ set.name }} ({{ set.words.length }} words)
+              </option>
+            </select>
+            <p class="text-xs text-gray-400 mt-1">
+              Select a word set to automatically populate your bingo room with those words
+            </p>
           </div>
           
           <button 
@@ -165,22 +183,46 @@ export default {
     const loading = ref(false)
     const newRoom = ref({
       code: '',
-      gridSize: 5
+      gridSize: 5,
+      wordSetId: ''
     })
     const joinRoomData = ref({
       nickname: '',
       code: ''
     })
     const userRooms = ref([])
+    const wordSets = ref([])
     
     // Load user's rooms on component mount
     onMounted(async () => {
       loading.value = true
       userRooms.value = await roomStore.loadUserRooms()
+      
+      // Load saved word sets
+      loadWordSets()
+      
       loading.value = false
     })
     
     // Methods
+    
+    // Load word sets from local storage
+    function loadWordSets() {
+      const storedSets = localStorage.getItem('bingoWordSets')
+      if (storedSets) {
+        try {
+          const parsedSets = JSON.parse(storedSets)
+          // Add an id property to each set based on its index
+          wordSets.value = parsedSets.map((set, index) => ({
+            ...set,
+            id: index
+          }))
+        } catch (error) {
+          console.error('Failed to parse word sets:', error)
+          wordSets.value = []
+        }
+      }
+    }
     
     // Generate a random room code
     function generateRandomCode() {
@@ -197,9 +239,19 @@ export default {
       loading.value = true
       
       try {
+        // Check if we need to use a word set
+        let words = []
+        if (newRoom.value.wordSetId !== '') {
+          const setIndex = parseInt(newRoom.value.wordSetId)
+          if (!isNaN(setIndex) && wordSets.value[setIndex]) {
+            words = [...wordSets.value[setIndex].words]
+          }
+        }
+        
         const roomId = await roomStore.createRoom(
           newRoom.value.code,
-          parseInt(newRoom.value.gridSize)
+          parseInt(newRoom.value.gridSize),
+          words
         )
         
         if (roomId) {
@@ -278,6 +330,7 @@ export default {
       newRoom,
       joinRoomData,
       userRooms,
+      wordSets,
       generateRandomCode,
       createRoom,
       joinRoom,
