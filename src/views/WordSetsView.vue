@@ -214,13 +214,13 @@
 
 <script>
 import { ref, computed, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
+//import { useRouter } from 'vue-router'
 import { useNotificationStore } from '@/stores/notification'
 
 export default {
   name: 'WordSetsView',
   setup() {
-    const router = useRouter()
+   // const router = useRouter()
     const notificationStore = useNotificationStore()
     
     // State
