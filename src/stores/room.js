@@ -51,8 +51,9 @@ export const useRoomStore = defineStore('room', () => {
    * Create a new bingo room
    * @param {string} roomCode - Room code/ID
    * @param {number} gridSize - Grid size (3, 4, or 5)
+   * @param {Array} initialWords - Optional initial words for the room
    */
-  async function createRoom(roomCode, gridSize = 5) {
+  async function createRoom(roomCode, gridSize = 5, initialWords = []) {
     loading.value = true
     
     try {
@@ -86,7 +87,7 @@ export const useRoomStore = defineStore('room', () => {
         active: true,
         status: 'setup', // Room starts in setup mode before admin adds words
         players: [],
-        words: [], // Will be populated by admin later
+        words: initialWords || [], // Use initial words if provided
         pendingApprovals: [] // For tracking player marks that need admin approval
       }
       
@@ -189,6 +190,44 @@ export const useRoomStore = defineStore('room', () => {
       console.error('Error loading user rooms:', error)
       notificationStore.showNotification(`Error loading your rooms: ${error.message}`, 'error')
       return []
+    } finally {
+      loading.value = false
+    }
+  }
+  
+  /**
+   * Add multiple words to the current room at once
+   * @param {Array<string>} words - Words to add
+   */
+  async function addMultipleWords(words) {
+    if (!currentRoom.value) {
+      notificationStore.showNotification('No room selected', 'error')
+      return false
+    }
+    
+    if (!Array.isArray(words) || words.length === 0) {
+      notificationStore.showNotification('No words provided to add', 'error')
+      return false
+    }
+    
+    loading.value = true
+    
+    try {
+      const roomRef = doc(db, 'rooms', currentRoom.value.id)
+      
+      // Get existing words and add new ones
+      const existingWords = [...roomWords.value]
+      const updatedWords = [...existingWords, ...words]
+      
+      // Update the document
+      await updateDoc(roomRef, { words: updatedWords })
+      
+      notificationStore.showNotification(`Added ${words.length} words to the word list`, 'success')
+      return true
+    } catch (error) {
+      console.error('Error adding words:', error)
+      notificationStore.showNotification(`Error adding words: ${error.message}`, 'error')
+      return false
     } finally {
       loading.value = false
     }
@@ -849,6 +888,7 @@ export const useRoomStore = defineStore('room', () => {
     loadRoom,
     loadUserRooms,
     addWord,
+    addMultipleWords,
     removeWord,
     startGame,
     resetGame,
