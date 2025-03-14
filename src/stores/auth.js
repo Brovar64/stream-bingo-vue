@@ -3,7 +3,6 @@ import { ref, computed } from 'vue'
 import { auth } from '@/firebase'
 import { useNotificationStore } from '@/stores/notification'
 import { 
-  signInAnonymously, 
   signOut,
   onAuthStateChanged,
   getRedirectResult
