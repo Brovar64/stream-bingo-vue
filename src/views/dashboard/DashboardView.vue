@@ -1,0 +1,296 @@
+<template>
+  <div class="container py-8">
+    <div class="flex justify-between items-center mb-8">
+      <h1 class="title">Dashboard</h1>
+      <button @click="logout" class="btn bg-background-lighter hover:bg-gray-700 text-white">
+        Logout
+      </button>
+    </div>
+    
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <!-- Create Room Card -->
+      <div class="card">
+        <h2 class="text-xl font-semibold mb-4">Create a Bingo Room</h2>
+        <form @submit.prevent="createRoom" class="space-y-4">
+          <div class="form-group">
+            <label for="roomCode">Room Code</label>
+            <div class="flex">
+              <input 
+                type="text" 
+                id="roomCode" 
+                v-model="newRoom.code"
+                class="form-control"
+                placeholder="Enter 4-6 character code"
+                maxlength="6"
+                required
+              >
+              <button 
+                type="button"
+                @click="generateRandomCode"
+                class="ml-2 bg-background-lighter p-2 rounded hover:bg-gray-700"
+                title="Generate random code"
+              >
+                🎲
+              </button>
+            </div>
+          </div>
+          
+          <div class="form-group">
+            <label for="gridSize">Grid Size</label>
+            <select id="gridSize" v-model="newRoom.gridSize" class="form-control">
+              <option value="3">3x3 (Small)</option>
+              <option value="4">4x4 (Medium)</option>
+              <option value="5">5x5 (Standard)</option>
+            </select>
+          </div>
+          
+          <button 
+            type="submit" 
+            class="btn btn-primary w-full"
+            :disabled="loading"
+          >
+            {{ loading ? 'Creating...' : 'Create Room' }}
+          </button>
+        </form>
+      </div>
+      
+      <!-- Join Room Card -->
+      <div class="card">
+        <h2 class="text-xl font-semibold mb-4">Join Existing Room</h2>
+        <form @submit.prevent="joinRoom" class="space-y-4">
+          <div class="form-group">
+            <label for="nickname">Your Nickname</label>
+            <input 
+              type="text" 
+              id="nickname" 
+              v-model="joinRoomData.nickname"
+              class="form-control"
+              placeholder="Enter your nickname"
+              required
+            >
+          </div>
+          
+          <div class="form-group">
+            <label for="joinRoomCode">Room Code</label>
+            <input 
+              type="text" 
+              id="joinRoomCode" 
+              v-model="joinRoomData.code"
+              class="form-control"
+              placeholder="Enter room code"
+              maxlength="6"
+              required
+            >
+          </div>
+          
+          <button 
+            type="submit" 
+            class="btn btn-primary w-full"
+            :disabled="loading"
+          >
+            {{ loading ? 'Joining...' : 'Join Room' }}
+          </button>
+        </form>
+      </div>
+      
+      <!-- Your Rooms Card -->
+      <div class="card">
+        <h2 class="text-xl font-semibold mb-4">Your Created Rooms</h2>
+        
+        <div v-if="loading" class="text-center py-8">
+          <div class="spinner mx-auto mb-4"></div>
+          <p>Loading your rooms...</p>
+        </div>
+        
+        <div v-else-if="userRooms.length === 0" class="text-center py-8 text-gray-400">
+          <p>You haven't created any rooms yet.</p>
+        </div>
+        
+        <div v-else class="space-y-4">
+          <div v-for="room in userRooms" :key="room.id" class="bg-background-lighter p-4 rounded-lg">
+            <div class="flex justify-between items-start">
+              <div>
+                <h3 class="font-semibold">Room: {{ room.id }}</h3>
+                <p class="text-sm text-gray-400">{{ room.gridSize }}x{{ room.gridSize }} grid</p>
+                <div class="flex items-center mt-1">
+                  <span 
+                    :class="['status-badge', room.status === 'active' ? 'bg-success' : 'bg-warning']"
+                  >
+                    {{ room.status === 'active' ? 'Active' : 'Setup' }}
+                  </span>
+                  <span class="ml-2 text-sm text-gray-400">
+                    {{ room.players?.length || 0 }} players
+                  </span>
+                </div>
+              </div>
+              
+              <div class="flex space-x-2">
+                <button 
+                  @click="navigateToRoom(room.id)"
+                  class="btn btn-primary py-1 px-2 text-sm"
+                >
+                  Manage
+                </button>
+                <button 
+                  @click="confirmDeleteRoom(room.id)"
+                  class="btn bg-error hover:bg-red-700 py-1 px-2 text-sm"
+                >
+                  Delete
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script>
+import { ref, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
+import { useAuthStore } from '@/stores/auth'
+import { useRoomStore } from '@/stores/room'
+import { useNotificationStore } from '@/stores/notification'
+
+export default {
+  name: 'DashboardView',
+  setup() {
+    const router = useRouter()
+    const authStore = useAuthStore()
+    const roomStore = useRoomStore()
+    const notificationStore = useNotificationStore()
+    
+    // State
+    const loading = ref(false)
+    const newRoom = ref({
+      code: '',
+      gridSize: 5
+    })
+    const joinRoomData = ref({
+      nickname: '',
+      code: ''
+    })
+    const userRooms = ref([])
+    
+    // Load user's rooms on component mount
+    onMounted(async () => {
+      loading.value = true
+      userRooms.value = await roomStore.loadUserRooms()
+      loading.value = false
+    })
+    
+    // Methods
+    
+    // Generate a random room code
+    function generateRandomCode() {
+      const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
+      let code = ''
+      for (let i = 0; i < 5; i++) {
+        code += chars.charAt(Math.floor(Math.random() * chars.length))
+      }
+      newRoom.value.code = code
+    }
+    
+    // Create a new room
+    async function createRoom() {
+      loading.value = true
+      
+      try {
+        const roomId = await roomStore.createRoom(
+          newRoom.value.code,
+          parseInt(newRoom.value.gridSize)
+        )
+        
+        if (roomId) {
+          // Navigate to the admin room page
+          router.push(`/admin/room/${roomId}`)
+        }
+      } catch (error) {
+        console.error('Create room error:', error)
+        notificationStore.showNotification('Failed to create room', 'error')
+      } finally {
+        loading.value = false
+      }
+    }
+    
+    // Join an existing room
+    async function joinRoom() {
+      loading.value = true
+      
+      try {
+        const roomData = await roomStore.joinRoom(
+          joinRoomData.value.nickname,
+          joinRoomData.value.code
+        )
+        
+        if (roomData) {
+          // Navigate to the player room page
+          router.push(`/play/${roomData.id}`)
+        }
+      } catch (error) {
+        console.error('Join room error:', error)
+        notificationStore.showNotification('Failed to join room', 'error')
+      } finally {
+        loading.value = false
+      }
+    }
+    
+    // Navigate to room management
+    function navigateToRoom(roomId) {
+      router.push(`/admin/room/${roomId}`)
+    }
+    
+    // Delete room with confirmation
+    function confirmDeleteRoom(roomId) {
+      if (confirm(`Are you sure you want to delete room ${roomId}? This cannot be undone.`)) {
+        deleteRoom(roomId)
+      }
+    }
+    
+    // Delete a room
+    async function deleteRoom(roomId) {
+      loading.value = true
+      
+      try {
+        const success = await roomStore.deleteRoom(roomId)
+        
+        if (success) {
+          // Refresh the rooms list
+          userRooms.value = await roomStore.loadUserRooms()
+        }
+      } catch (error) {
+        console.error('Delete room error:', error)
+        notificationStore.showNotification('Failed to delete room', 'error')
+      } finally {
+        loading.value = false
+      }
+    }
+    
+    // Logout
+    function logout() {
+      authStore.logout()
+      router.push('/')
+    }
+    
+    return {
+      loading,
+      newRoom,
+      joinRoomData,
+      userRooms,
+      generateRandomCode,
+      createRoom,
+      joinRoom,
+      navigateToRoom,
+      confirmDeleteRoom,
+      logout
+    }
+  }
+}
+</script>
+
+<style scoped>
+.status-badge {
+  @apply text-xs py-1 px-2 rounded-full text-white;
+}
+</style>
