@@ -23,7 +23,6 @@
 
 <script>
 import { ref, provide, onMounted } from 'vue'
-import { useRoute } from 'vue-router'
 import Notification from '@/components/common/Notification.vue'
 import { useAuthStore } from '@/stores/auth'
 
@@ -34,7 +33,6 @@ export default {
   },
   setup() {
     const isLoading = ref(true)
-    const route = useRoute()
     const authStore = useAuthStore()
     
     // Provide loading state to all components
