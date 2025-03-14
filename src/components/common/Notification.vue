@@ -25,7 +25,7 @@ import { computed } from 'vue'
 import { useNotificationStore } from '@/stores/notification'
 
 export default {
-  name: 'Notification',
+  name: 'AppNotification',
   setup() {
     const notificationStore = useNotificationStore()
     const notifications = computed(() => notificationStore.notifications)
