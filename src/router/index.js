@@ -7,6 +7,7 @@ const LoginView = () => import('@/views/auth/LoginView.vue')
 const DashboardView = () => import('@/views/dashboard/DashboardView.vue')
 const AdminRoomView = () => import('@/views/room/AdminRoomView.vue')
 const PlayerRoomView = () => import('@/views/room/PlayerRoomView.vue')
+const WordSetsView = () => import('@/views/WordSetsView.vue')
 const NotFoundView = () => import('@/views/NotFoundView.vue')
 
 // Routes configuration
@@ -38,6 +39,12 @@ const routes = [
     path: '/play/:id',
     name: 'player-room',
     component: PlayerRoomView
+  },
+  {
+    path: '/word-sets',
+    name: 'word-sets',
+    component: WordSetsView,
+    meta: { requiresAuth: true }
   },
   {
     path: '/auth-callback',
