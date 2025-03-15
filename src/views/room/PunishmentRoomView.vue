@@ -44,15 +44,6 @@
           </router-link>
           
           <button 
-            v-if="isRoomSetup" 
-            @click="startGame" 
-            :disabled="Object.keys(roomData.grid || {}).length < requiredCells"
-            :class="['btn', Object.keys(roomData.grid || {}).length < requiredCells ? 'bg-gray-600 cursor-not-allowed' : 'btn-primary']"
-          >
-            Start Game
-          </button>
-          
-          <button 
             v-if="isRoomActive" 
             @click="resetGame" 
             class="btn bg-warning hover:bg-yellow-700 text-white"
@@ -78,135 +69,222 @@
         </div>
       </div>
       
-      <!-- Setup Mode Content -->
-      <div v-if="isRoomSetup" class="mb-6">
-        <div class="card mb-6">
-          <h2 class="text-xl font-semibold mb-4">Setup Punishment Bingo</h2>
-          <p class="text-sm text-gray-400 mb-4">
-            Fill the grid with phrases and punishments. Left side (first two columns) is for the room creator,
-            right side (last two columns) is for the players.
-          </p>
-          
-          <div class="mb-4">
-            <div class="progress-bar">
-              <div 
-                class="progress" 
-                :style="`width: ${(Object.keys(roomData.grid || {}).length / requiredCells) * 100}%`"
-              ></div>
-            </div>
-            <div class="text-sm text-gray-400 mt-1">
-              {{ Object.keys(roomData.grid || {}).length }} / {{ requiredCells }} cells filled
+      <!-- Setup Mode Content - using a two-column layout -->
+      <div v-if="isRoomSetup" class="grid grid-cols-1 lg:grid-cols-4 gap-6">
+        <!-- Left Column (3/4): Grid Setup -->
+        <div class="lg:col-span-3">
+          <div class="grid-editor">
+            <h3 class="text-lg font-semibold mb-3">Edit Grid</h3>
+            
+            <div class="grid-container grid-scrollable">
+              <div class="side-label left-label">Room Creator Side</div>
+              <div class="side-label right-label">Players Side</div>
+              
+              <div class="punishment-grid" :style="`grid-template-rows: repeat(${roomData.gridHeight}, 1fr);`">
+                <!-- Grid cells -->
+                <template v-for="row in roomData.gridHeight" :key="`row-${row}`">
+                  <template v-for="col in 4" :key="`${row-1}_${col-1}`">
+                    <div 
+                      :class="['grid-cell', 
+                        col <= 2 ? 'creator-side' : 'player-side',
+                        cellContent(`${row-1}_${col-1}`) ? 'filled' : ''
+                      ]"
+                      @click="editCell(row-1, col-1, col <= 2 ? 'left' : 'right')"
+                    >
+                      <div v-if="cellContent(`${row-1}_${col-1}`)" class="cell-content">
+                        <div class="phrase">{{ cellContent(`${row-1}_${col-1}`).phrase }}</div>
+                        <div class="punishment">{{ cellContent(`${row-1}_${col-1}`).punishment }}</div>
+                        <button @click.stop="removeCell(`${row-1}_${col-1}`)" class="remove-btn">×</button>
+                      </div>
+                      <div v-else class="empty-cell">
+                        <span>Click to add</span>
+                      </div>
+                    </div>
+                  </template>
+                </template>
+              </div>
             </div>
           </div>
         </div>
         
-        <!-- Grid Setup -->
-        <div class="grid-editor">
-          <h3 class="text-lg font-semibold mb-3">Edit Grid</h3>
-          
-          <div class="grid-container">
-            <div class="side-label left-label">Room Creator Side</div>
-            <div class="side-label right-label">Players Side</div>
+        <!-- Right Column (1/4): Setup Controls -->
+        <div class="lg:col-span-1">
+          <div class="card">
+            <h2 class="text-xl font-semibold mb-4">Setup Punishment Bingo</h2>
             
-            <div class="punishment-grid" :style="`grid-template-rows: repeat(${roomData.gridHeight}, 1fr);`">
-              <!-- Grid cells -->
-              <template v-for="row in roomData.gridHeight" :key="`row-${row}`">
-                <template v-for="col in 4" :key="`${row-1}_${col-1}`">
-                  <div 
-                    :class="['grid-cell', 
-                      col <= 2 ? 'creator-side' : 'player-side',
-                      cellContent(`${row-1}_${col-1}`) ? 'filled' : ''
-                    ]"
-                    @click="editCell(row-1, col-1, col <= 2 ? 'left' : 'right')"
-                  >
-                    <div v-if="cellContent(`${row-1}_${col-1}`)" class="cell-content">
-                      <div class="phrase">{{ cellContent(`${row-1}_${col-1}`).phrase }}</div>
-                      <div class="punishment">{{ cellContent(`${row-1}_${col-1}`).punishment }}</div>
-                      <button @click.stop="removeCell(`${row-1}_${col-1}`)" class="remove-btn">×</button>
-                    </div>
-                    <div v-else class="empty-cell">
-                      <span>Click to add</span>
-                    </div>
-                  </div>
-                </template>
-              </template>
+            <div class="mb-4">
+              <div class="progress-bar">
+                <div 
+                  class="progress" 
+                  :style="`width: ${(Object.keys(roomData.grid || {}).length / requiredCells) * 100}%`"
+                ></div>
+              </div>
+              <div class="text-sm text-gray-400 mt-1">
+                {{ Object.keys(roomData.grid || {}).length }} / {{ requiredCells }} cells filled
+              </div>
             </div>
+            
+            <!-- Add Phrase/Punishment Form -->
+            <div class="mb-4">
+              <h3 class="text-md font-semibold mb-2">Add New Cell</h3>
+              <form @submit.prevent="addManualCell" class="space-y-3">
+                <div class="form-group">
+                  <label for="cellPhrase" class="text-sm">Phrase</label>
+                  <input
+                    type="text"
+                    id="cellPhrase" 
+                    v-model="newCell.phrase"
+                    class="form-control"
+                    placeholder="Enter bingo phrase"
+                    required
+                  />
+                </div>
+                
+                <div class="form-group">
+                  <label for="cellPunishment" class="text-sm">Punishment</label>
+                  <input
+                    type="text"
+                    id="cellPunishment" 
+                    v-model="newCell.punishment"
+                    class="form-control"
+                    placeholder="Enter punishment"
+                    required
+                  />
+                </div>
+                
+                <div class="form-group">
+                  <label for="cellSide" class="text-sm">Side</label>
+                  <select id="cellSide" v-model="newCell.side" class="form-control">
+                    <option value="left">Creator Side</option>
+                    <option value="right">Players Side</option>
+                  </select>
+                </div>
+                
+                <div class="form-group">
+                  <label for="cellPosition" class="text-sm">Position</label>
+                  <div class="grid grid-cols-2 gap-2">
+                    <select id="cellRow" v-model="newCell.row" class="form-control">
+                      <option v-for="row in roomData.gridHeight" :key="row" :value="row-1">
+                        Row {{ row }}
+                      </option>
+                    </select>
+                    <select id="cellCol" v-model="newCell.col" class="form-control">
+                      <option v-for="col in 4" :key="col" :value="col-1"
+                              :disabled="(col <= 2 && newCell.side === 'right') || (col > 2 && newCell.side === 'left')">
+                        {{ col <= 2 ? 'Left' : 'Right' }} Col {{ col <= 2 ? col : col-2 }}
+                      </option>
+                    </select>
+                  </div>
+                </div>
+                
+                <button type="submit" class="btn btn-primary w-full">
+                  Add Cell
+                </button>
+              </form>
+            </div>
+            
+            <!-- Quick Fill Options -->
+            <div class="mb-4">
+              <h3 class="text-md font-semibold mb-2">Quick Fill Options</h3>
+              <div class="space-y-2">
+                <button 
+                  @click="showBulkAddModal = true"
+                  class="btn bg-background-lighter hover:bg-gray-700 text-white w-full"
+                >
+                  Bulk Add Cells
+                </button>
+              </div>
+            </div>
+            
+            <!-- Start Game Button -->
+            <button 
+              @click="startGame"
+              :disabled="Object.keys(roomData.grid || {}).length < requiredCells"
+              :class="['btn w-full', Object.keys(roomData.grid || {}).length < requiredCells ? 'bg-gray-600 cursor-not-allowed' : 'btn-primary']"
+            >
+              {{ Object.keys(roomData.grid || {}).length < requiredCells ? `Need ${requiredCells - Object.keys(roomData.grid || {}).length} more cells` : 'Start Game' }}
+            </button>
           </div>
         </div>
       </div>
       
       <!-- Active Game Content -->
-      <div v-if="isRoomActive">
-        <div class="card mb-6">
-          <h2 class="text-xl font-semibold mb-4">Punishment Bingo Game</h2>
-          
-          <div class="grid-container active-mode">
-            <div class="side-label left-label">Room Creator Side</div>
-            <div class="side-label right-label">Players Side</div>
-            
-            <div class="punishment-grid" :style="`grid-template-rows: repeat(${roomData.gridHeight}, 1fr);`">
-              <!-- Grid cells -->
-              <template v-for="row in roomData.gridHeight" :key="`row-${row}`">
-                <template v-for="col in 4" :key="`${row-1}_${col-1}`">
-                  <div 
-                    :class="['grid-cell', 
-                      col <= 2 ? 'creator-side' : 'player-side',
-                      cellContent(`${row-1}_${col-1}`) ? 'filled' : '',
-                      isCellCalled(`${row-1}_${col-1}`) ? 'called' : '',
-                      isPunishmentCompleted(`${row-1}_${col-1}`) ? 'completed' : ''
-                    ]"
-                    @click="handleCellClick(`${row-1}_${col-1}`)"
-                  >
-                    <div v-if="cellContent(`${row-1}_${col-1}`)" class="cell-content">
-                      <div class="phrase">{{ cellContent(`${row-1}_${col-1}`).phrase }}</div>
-                      <div class="punishment">{{ cellContent(`${row-1}_${col-1}`).punishment }}</div>
-                      
-                      <!-- Vote counts -->
-                      <div v-if="isCellCalled(`${row-1}_${col-1}`)" class="vote-info">
-                        <div class="vote-count">
-                          <span class="yes">👍 {{ cellContent(`${row-1}_${col-1}`).votes?.yes || 0 }}</span>
-                          <span class="no">👎 {{ cellContent(`${row-1}_${col-1}`).votes?.no || 0 }}</span>
-                        </div>
-                        
-                        <!-- Admin resolve punishment -->
-                        <div v-if="!isPunishmentCompleted(`${row-1}_${col-1}`)" class="resolve-buttons">
-                          <button 
-                            @click.stop="resolvePunishment(`${row-1}_${col-1}`, true)" 
-                            class="resolve-btn approve"
-                          >
-                            ✓
-                          </button>
-                          <button 
-                            @click.stop="resolvePunishment(`${row-1}_${col-1}`, false)" 
-                            class="resolve-btn reject"
-                          >
-                            ✗
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </template>
-              </template>
+      <div v-if="isRoomActive" class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        <!-- Left Column: Players -->
+        <div class="lg:col-span-3">
+          <div class="card">
+            <h2 class="text-xl font-semibold mb-4">Players</h2>
+            <div v-if="!roomData.players || roomData.players.length === 0" class="text-center py-4 text-gray-400">
+              No players have joined yet.
+            </div>
+            <div v-else class="space-y-2">
+              <div 
+                v-for="(player, index) in roomData.players" 
+                :key="index"
+                class="bg-background-lighter p-3 rounded-lg"
+              >
+                <div class="font-medium">{{ player.nickname }}</div>
+                <div class="text-xs text-gray-400 mt-1">
+                  Joined: {{ formatTime(player.joinedAt) }}
+                </div>
+              </div>
             </div>
           </div>
         </div>
         
-        <!-- Players section -->
-        <div class="card">
-          <h2 class="text-xl font-semibold mb-4">Players</h2>
-          <div v-if="!roomData.players || roomData.players.length === 0" class="text-center py-4 text-gray-400">
-            No players have joined yet.
-          </div>
-          <div v-else class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-            <div 
-              v-for="(player, index) in roomData.players" 
-              :key="index"
-              class="bg-background-lighter p-3 rounded-lg"
-            >
-              <span class="font-medium">{{ player.nickname }}</span>
-              <div class="text-xs text-gray-400 mt-1">
-                Joined: {{ formatTime(player.joinedAt) }}
+        <!-- Right Column: Bingo Grid -->
+        <div class="lg:col-span-9">
+          <div class="card">
+            <h2 class="text-xl font-semibold mb-4">Punishment Bingo Game</h2>
+            
+            <div class="grid-container grid-scrollable-compact">
+              <div class="side-label left-label">Room Creator Side</div>
+              <div class="side-label right-label">Players Side</div>
+              
+              <div class="punishment-grid" :style="`grid-template-rows: repeat(${roomData.gridHeight}, 1fr);`">
+                <!-- Grid cells -->
+                <template v-for="row in roomData.gridHeight" :key="`row-${row}`">
+                  <template v-for="col in 4" :key="`${row-1}_${col-1}`">
+                    <div 
+                      :class="['grid-cell', 
+                        col <= 2 ? 'creator-side' : 'player-side',
+                        cellContent(`${row-1}_${col-1}`) ? 'filled' : '',
+                        isCellCalled(`${row-1}_${col-1}`) ? 'called' : '',
+                        isPunishmentCompleted(`${row-1}_${col-1}`) ? 'completed' : ''
+                      ]"
+                      @click="handleCellClick(`${row-1}_${col-1}`)"
+                    >
+                      <div v-if="cellContent(`${row-1}_${col-1}`)" class="cell-content">
+                        <div class="phrase">{{ cellContent(`${row-1}_${col-1}`).phrase }}</div>
+                        <div class="punishment">{{ cellContent(`${row-1}_${col-1}`).punishment }}</div>
+                        
+                        <!-- Vote counts -->
+                        <div v-if="isCellCalled(`${row-1}_${col-1}`)" class="vote-info">
+                          <div class="vote-count">
+                            <span class="yes">👍 {{ cellContent(`${row-1}_${col-1}`).votes?.yes || 0 }}</span>
+                            <span class="no">👎 {{ cellContent(`${row-1}_${col-1}`).votes?.no || 0 }}</span>
+                          </div>
+                          
+                          <!-- Admin resolve punishment -->
+                          <div v-if="!isPunishmentCompleted(`${row-1}_${col-1}`)" class="resolve-buttons">
+                            <button 
+                              @click.stop="resolvePunishment(`${row-1}_${col-1}`, true)" 
+                              class="resolve-btn approve"
+                            >
+                              ✓
+                            </button>
+                            <button 
+                              @click.stop="resolvePunishment(`${row-1}_${col-1}`, false)" 
+                              class="resolve-btn reject"
+                            >
+                              ✗
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </template>
+                </template>
               </div>
             </div>
           </div>
@@ -274,6 +352,63 @@
         </div>
       </div>
     </div>
+    
+    <!-- Bulk Add Modal -->
+    <div v-if="showBulkAddModal" class="modal-overlay">
+      <div class="modal-container">
+        <div class="modal-header">
+          <h3 class="text-lg font-semibold">Bulk Add Cells</h3>
+          <button @click="showBulkAddModal = false" class="close-button">×</button>
+        </div>
+        
+        <div class="modal-body">
+          <div class="form-group">
+            <label>Format: "phrase|punishment" (one per line)</label>
+            <textarea 
+              v-model="bulkEntries"
+              class="form-control h-40"
+              placeholder="Phrase 1|Punishment 1&#10;Phrase 2|Punishment 2&#10;..."
+            ></textarea>
+          </div>
+          
+          <div class="form-group">
+            <label>Side to add to:</label>
+            <div class="flex space-x-4">
+              <label class="flex items-center">
+                <input type="radio" v-model="bulkSide" value="left" class="mr-1">
+                Creator Side
+              </label>
+              <label class="flex items-center">
+                <input type="radio" v-model="bulkSide" value="right" class="mr-1">
+                Players Side
+              </label>
+            </div>
+          </div>
+          
+          <div v-if="parsedBulkEntries.length > 0" class="mt-4">
+            <p class="text-sm">{{ parsedBulkEntries.length }} valid entries found</p>
+          </div>
+          
+          <div class="flex justify-end space-x-3 mt-4">
+            <button 
+              type="button" 
+              @click="showBulkAddModal = false" 
+              class="btn bg-background-lighter hover:bg-gray-700 text-white"
+            >
+              Cancel
+            </button>
+            <button 
+              type="button"
+              @click="addBulkCells"
+              class="btn btn-primary"
+              :disabled="parsedBulkEntries.length === 0"
+            >
+              Add {{ parsedBulkEntries.length }} Cells
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -297,6 +432,7 @@ export default {
     // State
     const loading = ref(true)
     const showEditModal = ref(false)
+    const showBulkAddModal = ref(false)
     const editingCellId = ref(null)
     const editingCell = ref({
       phrase: '',
@@ -305,11 +441,40 @@ export default {
       side: 'left'
     })
     
+    const newCell = ref({
+      phrase: '',
+      punishment: '',
+      row: 0,
+      col: 0,
+      side: 'left'
+    })
+    
+    const bulkEntries = ref('')
+    const bulkSide = ref('left')
+    
     // Computed properties
     const roomData = computed(() => roomStore.currentRoom)
     const isRoomSetup = computed(() => roomStore.isRoomSetup)
     const isRoomActive = computed(() => roomStore.isRoomActive)
     const requiredCells = computed(() => roomStore.requiredCells)
+    
+    // Parse bulk entries
+    const parsedBulkEntries = computed(() => {
+      if (!bulkEntries.value.trim()) return []
+      return bulkEntries.value
+        .split('\n')
+        .map(line => {
+          const parts = line.split('|')
+          if (parts.length === 2) {
+            return {
+              phrase: parts[0].trim(),
+              punishment: parts[1].trim()
+            }
+          }
+          return null
+        })
+        .filter(entry => entry && entry.phrase && entry.punishment)
+    })
     
     // Load room data on component mount
     onMounted(async () => {
@@ -405,6 +570,86 @@ export default {
         console.error('Error saving cell:', error)
         notificationStore.showNotification('Error saving cell', 'error')
       }
+    }
+    
+    // Add a cell through the form
+    async function addManualCell() {
+      const position = { row: newCell.value.row, col: newCell.value.col }
+      const { phrase, punishment, side } = newCell.value
+      
+      // Handle column positioning based on side
+      if (side === 'left' && position.col > 1) {
+        position.col = 0
+      } else if (side === 'right' && position.col < 2) {
+        position.col = 2
+      }
+      
+      try {
+        const result = await roomStore.addCell(position, phrase, punishment, side)
+        
+        if (result.success) {
+          notificationStore.showNotification('Cell added successfully', 'success')
+          // Clear form
+          newCell.value.phrase = ''
+          newCell.value.punishment = ''
+        } else {
+          notificationStore.showNotification(result.error, 'error')
+        }
+      } catch (error) {
+        console.error('Error adding cell:', error)
+        notificationStore.showNotification('Error adding cell', 'error')
+      }
+    }
+    
+    // Add bulk cells
+    async function addBulkCells() {
+      if (parsedBulkEntries.value.length === 0) return
+      
+      let successCount = 0
+      const side = bulkSide.value
+      
+      // Find empty cells on the chosen side
+      const emptyCells = []
+      for (let row = 0; row < roomData.value.gridHeight; row++) {
+        // Define column range based on side
+        const colStart = side === 'left' ? 0 : 2
+        const colEnd = side === 'left' ? 2 : 4
+        
+        for (let col = colStart; col < colEnd; col++) {
+          const cellId = `${row}_${col}`
+          if (!cellContent(cellId)) {
+            emptyCells.push({ row, col })
+          }
+        }
+      }
+      
+      // Check if we have enough empty cells
+      if (emptyCells.length < parsedBulkEntries.value.length) {
+        notificationStore.showNotification(
+          `Not enough empty cells (need ${parsedBulkEntries.value.length}, have ${emptyCells.length})`,
+          'error'
+        )
+        return
+      }
+      
+      // Add entries to empty cells
+      for (let i = 0; i < parsedBulkEntries.value.length; i++) {
+        const entry = parsedBulkEntries.value[i]
+        const position = emptyCells[i]
+        
+        try {
+          const result = await roomStore.addCell(position, entry.phrase, entry.punishment, side)
+          if (result.success) {
+            successCount++
+          }
+        } catch (error) {
+          console.error('Error adding bulk cell:', error)
+        }
+      }
+      
+      notificationStore.showNotification(`Added ${successCount} cells successfully`, 'success')
+      showBulkAddModal.value = false
+      bulkEntries.value = ''
     }
     
     // Remove a cell
@@ -533,8 +778,13 @@ export default {
       isRoomActive,
       requiredCells,
       showEditModal,
+      showBulkAddModal,
       editingCellId,
       editingCell,
+      newCell,
+      bulkEntries,
+      bulkSide,
+      parsedBulkEntries,
       formatTime,
       cellContent,
       isCellCalled,
@@ -542,6 +792,8 @@ export default {
       editCell,
       cancelEdit,
       saveCell,
+      addManualCell,
+      addBulkCells,
       removeCell,
       startGame,
       resetGame,
@@ -580,6 +832,15 @@ export default {
   grid-template-areas: "labels labels" "grid grid";
 }
 
+.grid-scrollable {
+  max-height: calc(100vh - 300px);
+  overflow-y: auto;
+}
+
+.grid-scrollable-compact {
+  max-height: calc(100vh - 250px);
+}
+
 .side-label {
   @apply py-2 text-center font-semibold text-sm;
 }
@@ -604,7 +865,8 @@ export default {
 
 .grid-cell {
   aspect-ratio: 1;
-  min-height: 120px;
+  min-height: 100px;
+  max-height: 150px;
   @apply bg-background-lighter rounded p-2 relative cursor-pointer transition-colors;
 }
 
@@ -638,10 +900,11 @@ export default {
 
 .cell-content {
   @apply h-full flex flex-col justify-between;
+  font-size: 0.85rem;
 }
 
 .phrase {
-  @apply font-medium text-sm mb-2;
+  @apply font-medium mb-1;
 }
 
 .punishment {
@@ -661,7 +924,7 @@ export default {
 }
 
 .vote-info {
-  @apply mt-2 flex items-center justify-between text-xs;
+  @apply mt-1 flex items-center justify-between text-xs;
 }
 
 .vote-count {
