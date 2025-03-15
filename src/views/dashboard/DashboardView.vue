@@ -332,29 +332,35 @@ export default {
     
     // Join an existing room
     async function joinRoom() {
+      // Prevent double submission
+      if (joinLoading.value) return
       joinLoading.value = true
       
       try {
         // Uppercase the room code
-        joinRoomData.value.code = joinRoomData.value.code.toUpperCase()
+        const roomCode = joinRoomData.value.code.toUpperCase()
+        joinRoomData.value.code = roomCode
         
         // Always use the current username when joining
-        const result = await roomStore.joinRoom(username.value, joinRoomData.value.code)
+        const result = await roomStore.joinRoom(username.value, roomCode)
         
         if (result) {
           // Navigate to the player room page - directly redirect
-          router.push(`/play/${joinRoomData.value.code}`)
+          router.push(`/play/${roomCode}`)
+        } else {
+          joinLoading.value = false
         }
       } catch (error) {
         console.error('Join room error:', error)
         notificationStore.showNotification(`Failed to join room: ${error.message}`, 'error')
-      } finally {
         joinLoading.value = false
       }
     }
     
     // Quick join a room (for active rooms section)
     async function quickJoinRoom(roomId) {
+      // Prevent double submission
+      if (joinLoading.value) return
       joinLoading.value = true
       
       try {
@@ -363,11 +369,12 @@ export default {
         if (result) {
           // Navigate to the player room page - directly redirect
           router.push(`/play/${roomId}`)
+        } else {
+          joinLoading.value = false
         }
       } catch (error) {
         console.error('Quick join room error:', error)
         notificationStore.showNotification(`Failed to join room: ${error.message}`, 'error')
-      } finally {
         joinLoading.value = false
       }
     }
