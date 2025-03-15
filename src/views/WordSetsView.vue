@@ -1,74 +1,142 @@
 <template>
   <div class="container py-8">
-    <div class="flex justify-between items-center mb-8">
-      <h1 class="title">Manage Sets</h1>
-      <div class="flex items-center space-x-4">
-        <select 
-          v-model="currentSetType" 
-          class="form-control"
-        >
-          <option value="Word">Bingo Words</option>
-          <option value="Player Punishment">Player Punishments</option>
-          <option value="Creator Punishment">Creator Punishments</option>
-        </select>
-        <button 
-          @click="startCreateSet" 
-          class="btn btn-primary"
-        >
-          Create New {{ currentSetType }} Set
-        </button>
-      </div>
-    </div>
+    <h1 class="title mb-8">Manage Sets</h1>
     
-    <!-- Sets List -->
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-      <div v-if="sets.length === 0" class="col-span-full card p-6 flex flex-col items-center justify-center">
-        <div class="text-gray-400 mb-3">No {{ currentSetType.toLowerCase() }} sets created yet</div>
-        <p class="text-sm text-gray-500">Create your first {{ currentSetType.toLowerCase() }} set to get started!</p>
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <!-- Bingo Words Set Column -->
+      <div class="card">
+        <div class="flex justify-between items-center mb-4">
+          <h2 class="text-xl font-semibold">Bingo Words Sets</h2>
+          <button 
+            @click="startCreateSet('Word')" 
+            class="btn btn-primary text-sm py-1 px-2"
+          >
+            Create Word Set
+          </button>
+        </div>
+        
+        <div v-if="wordSets.length === 0" class="text-center py-4 text-gray-400">
+          No word sets created yet.
+        </div>
+        
+        <div v-else class="space-y-2">
+          <div 
+            v-for="(set, index) in wordSets" 
+            :key="index" 
+            class="bg-background-lighter p-3 rounded-lg flex justify-between items-center"
+          >
+            <div>
+              <div class="font-medium">{{ set.name }}</div>
+              <div class="text-xs text-gray-400">{{ set.items.length }} words</div>
+            </div>
+            <div class="flex space-x-2">
+              <button 
+                @click="editSet(index, 'Word')" 
+                class="text-primary hover:text-primary-light"
+              >
+                ✏️
+              </button>
+              <button 
+                @click="deleteSet(index, 'Word')" 
+                class="text-error hover:text-red-400"
+              >
+                🗑️
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
       
-      <div v-else v-for="(set, index) in sets" :key="index" class="card p-4">
-        <div class="flex justify-between items-start mb-4">
-          <h3 class="text-lg font-semibold">{{ set.name }}</h3>
-          <div class="flex space-x-2">
-            <button 
-              @click="editSet(index)" 
-              class="text-primary hover:text-primary-light" 
-              title="Edit"
-            >
-              ✏️
-            </button>
-            <button 
-              @click="deleteSet(index)" 
-              class="text-error hover:text-red-400" 
-              title="Delete"
-            >
-              🗑️
-            </button>
-          </div>
+      <!-- Player Punishment Set Column -->
+      <div class="card">
+        <div class="flex justify-between items-center mb-4">
+          <h2 class="text-xl font-semibold">Player Punishment Sets</h2>
+          <button 
+            @click="startCreateSet('Player Punishment')" 
+            class="btn btn-primary text-sm py-1 px-2"
+          >
+            Create Player Set
+          </button>
         </div>
         
-        <div class="text-sm text-gray-400 mb-2">{{ set.items.length }} items</div>
-        
-        <div class="max-h-32 overflow-y-auto bg-background-lighter p-2 rounded mb-3">
-          <div v-for="(item, itemIndex) in set.items.slice(0, 5)" :key="itemIndex" class="text-sm mb-1">
-            {{ item }}
-          </div>
-          <div v-if="set.items.length > 5" class="text-xs text-gray-500 italic">
-            And {{ set.items.length - 5 }} more...
-          </div>
+        <div v-if="playerPunishmentSets.length === 0" class="text-center py-4 text-gray-400">
+          No player punishment sets created yet.
         </div>
         
-        <button 
-          @click="viewSet(index)" 
-          class="btn bg-background-lighter hover:bg-gray-700 text-white w-full"
-        >
-          View Details
-        </button>
+        <div v-else class="space-y-2">
+          <div 
+            v-for="(set, index) in playerPunishmentSets" 
+            :key="index" 
+            class="bg-background-lighter p-3 rounded-lg flex justify-between items-center"
+          >
+            <div>
+              <div class="font-medium">{{ set.name }}</div>
+              <div class="text-xs text-gray-400">{{ set.items.length }} punishments</div>
+            </div>
+            <div class="flex space-x-2">
+              <button 
+                @click="editSet(index, 'Player Punishment')" 
+                class="text-primary hover:text-primary-light"
+              >
+                ✏️
+              </button>
+              <button 
+                @click="deleteSet(index, 'Player Punishment')" 
+                class="text-error hover:text-red-400"
+              >
+                🗑️
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Creator Punishment Set Column -->
+      <div class="card">
+        <div class="flex justify-between items-center mb-4">
+          <h2 class="text-xl font-semibold">Creator Punishment Sets</h2>
+          <button 
+            @click="startCreateSet('Creator Punishment')" 
+            class="btn btn-primary text-sm py-1 px-2"
+          >
+            Create Creator Set
+          </button>
+        </div>
+        
+        <div v-if="creatorPunishmentSets.length === 0" class="text-center py-4 text-gray-400">
+          No creator punishment sets created yet.
+        </div>
+        
+        <div v-else class="space-y-2">
+          <div 
+            v-for="(set, index) in creatorPunishmentSets" 
+            :key="index" 
+            class="bg-background-lighter p-3 rounded-lg flex justify-between items-center"
+          >
+            <div>
+              <div class="font-medium">{{ set.name }}</div>
+              <div class="text-xs text-gray-400">{{ set.items.length }} punishments</div>
+            </div>
+            <div class="flex space-x-2">
+              <button 
+                @click="editSet(index, 'Creator Punishment')" 
+                class="text-primary hover:text-primary-light"
+              >
+                ✏️
+              </button>
+              <button 
+                @click="deleteSet(index, 'Creator Punishment')" 
+                class="text-error hover:text-red-400"
+              >
+                🗑️
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
     
-    <!-- Create/Edit Modal -->
+    <!-- Modal for Creating/Editing Sets -->
     <div v-if="showModal" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
       <div class="bg-background-card rounded-lg shadow-lg w-full max-w-3xl p-6 max-h-screen overflow-y-auto">
         <div class="flex justify-between items-center mb-6">
@@ -139,7 +207,7 @@
 </template>
 
 <script>
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed } from 'vue'
 import { useNotificationStore } from '@/stores/notification'
 
 export default {
@@ -148,14 +216,27 @@ export default {
     const notificationStore = useNotificationStore()
     
     // State
-    const currentSetType = ref('Word')
-    const sets = ref([])
+    const wordSets = ref([])
+    const playerPunishmentSets = ref([])
+    const creatorPunishmentSets = ref([])
     const newSetName = ref('')
     const itemInput = ref('')
     const showModal = ref(false)
+    const currentSetType = ref('Word')
     const editingIndex = ref(-1)
     
-    // Computed properties
+    // Load sets from local storage on initialization
+    function loadSets() {
+      const storedWordSets = localStorage.getItem('wordSets')
+      const storedPlayerPunishmentSets = localStorage.getItem('playerPunishmentSets')
+      const storedCreatorPunishmentSets = localStorage.getItem('creatorPunishmentSets')
+      
+      wordSets.value = storedWordSets ? JSON.parse(storedWordSets) : []
+      playerPunishmentSets.value = storedPlayerPunishmentSets ? JSON.parse(storedPlayerPunishmentSets) : []
+      creatorPunishmentSets.value = storedCreatorPunishmentSets ? JSON.parse(storedCreatorPunishmentSets) : []
+    }
+    
+    // Computed
     const parsedItems = computed(() => {
       if (!itemInput.value.trim()) return []
       return itemInput.value
@@ -164,58 +245,63 @@ export default {
         .filter(item => item.length > 0)
     })
     
-    // Watch for changes in set type
-    watch(currentSetType, () => {
-      loadSets()
-    })
-    
-    // Lifecycle hooks
-    onMounted(() => {
-      loadSets()
-    })
-    
-    // Methods
-    function loadSets() {
-      const storageKey = `${currentSetType.value.toLowerCase().replace(' ', '')}Sets`
-      const storedSets = localStorage.getItem(storageKey)
-      if (storedSets) {
-        try {
-          sets.value = JSON.parse(storedSets)
-        } catch (error) {
-          console.error('Failed to parse sets:', error)
-          sets.value = []
-        }
-      } else {
-        sets.value = []
-      }
-    }
-    
-    function saveSets() {
-      const storageKey = `${currentSetType.value.toLowerCase().replace(' ', '')}Sets`
-      localStorage.setItem(storageKey, JSON.stringify(sets.value))
-    }
-    
-    function startCreateSet() {
+    // Method to start creating a set
+    function startCreateSet(type) {
+      currentSetType.value = type
       newSetName.value = ''
       itemInput.value = ''
       editingIndex.value = -1
       showModal.value = true
     }
     
-    function editSet(index) {
+    // Method to edit a set
+    function editSet(index, type) {
+      currentSetType.value = type
       editingIndex.value = index
-      newSetName.value = sets.value[index].name
-      itemInput.value = sets.value[index].items.join('\n')
+      
+      const sets = getSetsForType(type)
+      const set = sets[index]
+      
+      newSetName.value = set.name
+      itemInput.value = set.items.join('\n')
       showModal.value = true
     }
     
-    function viewSet(index) {
-      editingIndex.value = index
-      editSet(index)
+    // Method to delete a set
+    function deleteSet(index, type) {
+      if (confirm(`Are you sure you want to delete this ${type.toLowerCase()} set?`)) {
+        const sets = getSetsForType(type)
+        const name = sets[index].name
+        
+        sets.splice(index, 1)
+        
+        saveSets(type)
+        notificationStore.showNotification(`${type} set "${name}" deleted`, 'success')
+      }
     }
     
+    // Save sets to local storage
+    function saveSets(type) {
+      const storageKey = `${type.toLowerCase().replace(' ', '')}Sets`
+      const sets = getSetsForType(type)
+      localStorage.setItem(storageKey, JSON.stringify(sets))
+    }
+    
+    // Get the correct sets array based on type
+    function getSetsForType(type) {
+      switch(type) {
+        case 'Word': return wordSets.value
+        case 'Player Punishment': return playerPunishmentSets.value
+        case 'Creator Punishment': return creatorPunishmentSets.value
+        default: return []
+      }
+    }
+    
+    // Method to save a new or edited set
     function saveSet() {
       if (!newSetName.value.trim() || parsedItems.value.length === 0) return
+      
+      const sets = getSetsForType(currentSetType.value)
       
       const newSet = {
         name: newSetName.value.trim(),
@@ -225,30 +311,22 @@ export default {
       
       if (editingIndex.value === -1) {
         // Creating new set
-        sets.value.push(newSet)
+        sets.push(newSet)
         notificationStore.showNotification(`${currentSetType.value} set created successfully`, 'success')
       } else {
         // Updating existing set
-        sets.value[editingIndex.value] = {
+        sets[editingIndex.value] = {
           ...newSet,
           updatedAt: new Date().toISOString()
         }
         notificationStore.showNotification(`${currentSetType.value} set updated successfully`, 'success')
       }
       
-      saveSets()
+      saveSets(currentSetType.value)
       closeModal()
     }
     
-    function deleteSet(index) {
-      if (confirm(`Are you sure you want to delete this ${currentSetType.value.toLowerCase()} set?`)) {
-        const name = sets.value[index].name
-        sets.value.splice(index, 1)
-        saveSets()
-        notificationStore.showNotification(`${currentSetType.value} set deleted`, 'success')
-      }
-    }
-    
+    // Method to handle file import
     function handleFileImport(event) {
       const file = event.target.files[0]
       if (!file) return
@@ -263,6 +341,7 @@ export default {
       reader.readAsText(file)
     }
     
+    // Close modal
     function closeModal() {
       showModal.value = false
       newSetName.value = ''
@@ -270,19 +349,23 @@ export default {
       editingIndex.value = -1
     }
     
+    // Load sets on initialization
+    loadSets()
+    
     return {
-      currentSetType,
-      sets,
+      wordSets,
+      playerPunishmentSets,
+      creatorPunishmentSets,
       newSetName,
       itemInput,
       showModal,
+      currentSetType,
       editingIndex,
       parsedItems,
       startCreateSet,
       editSet,
-      viewSet,
-      saveSet,
       deleteSet,
+      saveSet,
       handleFileImport,
       closeModal
     }
