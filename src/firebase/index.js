@@ -14,35 +14,27 @@ const firebaseConfig = {
 }
 
 // Initialize Firebase
-let app
-let db
-let auth
+console.log('Initializing Firebase...')
+export const firebaseApp = initializeApp(firebaseConfig)
+export const db = getFirestore(firebaseApp)
+export const auth = getAuth(firebaseApp)
 
-export function initializeFirebase() {
-  console.log('Initializing Firebase...')
-  
-  try {
-    app = initializeApp(firebaseConfig)
-    db = getFirestore(app)
-    auth = getAuth(app)
-    
-    // Enable offline data persistence (will show a deprecation warning, but still works)
-    enableIndexedDbPersistence(db)
-      .catch((err) => {
-        if (err.code === 'failed-precondition') {
-          console.warn('Multiple tabs open, persistence can only be enabled in one tab at a time.')
-        } else if (err.code === 'unimplemented') {
-          console.warn('The current browser does not support all of the features required to enable persistence.')
-        }
-      })
-    
-    console.log('Firebase initialized successfully!')
-    return true
-  } catch (error) {
-    console.error('Failed to initialize Firebase:', error)
-    return false
-  }
+// Enable offline data persistence
+try {
+  enableIndexedDbPersistence(db)
+    .catch((err) => {
+      if (err.code === 'failed-precondition') {
+        console.warn('Multiple tabs open, persistence can only be enabled in one tab at a time.')
+      } else if (err.code === 'unimplemented') {
+        console.warn('The current browser does not support all of the features required to enable persistence.')
+      }
+    })
+} catch (error) {
+  console.error('Error enabling persistence:', error)
 }
 
-// Export Firebase instances
-export { app, db, auth }
+// For compatibility with existing code, also export initialization function
+export function initializeFirebase() {
+  console.log('Firebase already initialized via VueFire')
+  return true
+}
