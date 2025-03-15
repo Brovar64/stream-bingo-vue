@@ -23,6 +23,20 @@ A Vue.js application for streamers to create and manage interactive bingo games 
   - Live updates across all devices
   - Persistent game state
 
+## Recent Fixes and Improvements
+
+- **Enhanced UI for Admin:**
+  - Pending approvals now shown directly on bingo words with player initials
+  - Show full bingo word content with proper wrapping
+  - Expand player grids directly below player names
+  
+- **Bug Fixes:**
+  - Fixed synchronization between admin and player views for checked/unchecked words
+  - Calling or uncalling a word now updates correctly across all players and the admin UI
+  - Suppressed common Firebase errors in the console for a cleaner development experience
+  - Improved error handling for concurrent updates
+  - Fixed proper tracking of winner status when unchecking words
+
 ## How the Game Works
 
 ### For Streamers:
@@ -31,7 +45,7 @@ A Vue.js application for streamers to create and manage interactive bingo games 
 2. **Set Up Words**: Add words or phrases that might happen during your stream.
 3. **Start the Game**: Once you have enough words, activate the game so viewers can join.
 4. **Manage the Game**:
-   - Call out words when they happen during the stream
+   - Call out words when they happen during the stream (click on them to toggle their status)
    - Approve or reject viewer marks directly on the bingo words
    - View player grids by clicking on a player's name
    - Monitor which players have achieved bingo
@@ -43,14 +57,6 @@ A Vue.js application for streamers to create and manage interactive bingo games 
 3. **Play Along**: Mark cells when the events happen during the stream.
 4. **Get Approved**: The streamer approves your marks if they're valid.
 5. **Win**: Get five in a row (horizontal, vertical, or diagonal) to win!
-
-## Recent UI Improvements
-
-- **Enhanced Approval Workflow**: Pending approvals are now displayed directly on bingo words for easier management
-- **Player Initials**: Shows player initials in a badge on words awaiting approval
-- **Expandable Player Grids**: Click on a player's name to see their grid directly below, without navigating away
-- **Full Word Display**: Bingo words now show their full content with proper text wrapping
-- **Streamlined Approvals**: Approve or reject marks with a simple click directly on the word
 
 ## Technologies Used
 
