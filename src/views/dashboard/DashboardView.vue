@@ -365,7 +365,7 @@ export default {
         const result = await roomStore.joinRoom(username.value, roomCode)
         console.log("[DASHBOARD] Join result:", result)
         
-        if (result && result.success) {
+        if (result && result.success === true) {
           console.log(`[DASHBOARD] Successfully joined room ${result.roomId}, navigating...`)
           
           // We need to use nextTick to ensure the UI updates before navigation
@@ -374,7 +374,7 @@ export default {
           // Navigate directly to the room
           router.push(`/play/${roomCode}`)
         } else {
-          console.log("[DASHBOARD] Join failed or returned no result")
+          console.log("[DASHBOARD] Join failed:", result?.error || "unknown error")
           joinLoading.value = false
         }
       } catch (error) {
@@ -402,7 +402,7 @@ export default {
         const result = await roomStore.joinRoom(username.value, roomId)
         console.log("[DASHBOARD] Quick join result:", result)
         
-        if (result && result.success) {
+        if (result && result.success === true) {
           console.log(`[DASHBOARD] Successfully quick-joined room ${result.roomId}, navigating...`)
           
           // We need to use nextTick to ensure the UI updates before navigation
@@ -411,7 +411,7 @@ export default {
           // Navigate directly to the room
           router.push(`/play/${roomId}`)
         } else {
-          console.log("[DASHBOARD] Quick join failed or returned no result")
+          console.log("[DASHBOARD] Quick join failed:", result?.error || "unknown error")
           joinLoading.value = false
         }
       } catch (error) {
