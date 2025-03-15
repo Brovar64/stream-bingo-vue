@@ -587,6 +587,9 @@ export default {
           console.error('Failed to parse word sets:', error)
           wordSets.value = []
         }
+      } else {
+        // Initialize with empty array if nothing found in localStorage
+        wordSets.value = []
       }
     }
     
@@ -600,6 +603,9 @@ export default {
           console.error('Failed to parse player punishment sets:', error)
           playerPunishmentSets.value = []
         }
+      } else {
+        // Initialize with empty array
+        playerPunishmentSets.value = []
       }
       
       // Load creator punishment sets
@@ -611,6 +617,9 @@ export default {
           console.error('Failed to parse creator punishment sets:', error)
           creatorPunishmentSets.value = []
         }
+      } else {
+        // Initialize with empty array
+        creatorPunishmentSets.value = []
       }
     }
     
