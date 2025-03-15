@@ -27,33 +27,34 @@ export default {
   name: 'CreateWordSetPanel',
   
   props: {
-    value: {
+    modelValue: {
       type: String,
       default: ''
     }
   },
   
-  emits: ['update:value', 'create'],
+  emits: ['update:modelValue', 'create'],
   
   data() {
     return {
-      setName: this.value
+      setName: this.modelValue
     }
   },
   
   watch: {
-    value(newVal) {
+    modelValue(newVal) {
       this.setName = newVal;
     },
     
     setName(newVal) {
-      this.$emit('update:value', newVal);
+      this.$emit('update:modelValue', newVal);
     }
   },
   
   methods: {
     openCreateModal() {
       if (!this.setName.trim()) return;
+      console.log('CreateWordSetPanel emitting create event with type: word');
       this.$emit('create', 'word');
     }
   }
