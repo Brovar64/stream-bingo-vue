@@ -78,7 +78,7 @@ export default {
       selectedSetId: null
     }
   },
-  emits: ['import', 'close'],
+  emits: ['import', 'close', 'error'],
   methods: {
     importSet() {
       if (this.selectedSetId === null) return
@@ -89,7 +89,8 @@ export default {
         return
       }
       
-      this.$emit('import', wordSet)
+      // Emit the selectedSetId instead of the whole wordSet
+      this.$emit('import', this.selectedSetId)
     }
   }
 }
