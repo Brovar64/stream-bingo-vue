@@ -50,21 +50,6 @@ const routes = [
     path: '/word-sets',
     name: 'word-sets',
     component: WordSetsView,
-    props: { type: 'Word' },
-    meta: { requiresAuth: true }
-  },
-  {
-    path: '/punishment-sets/player',
-    name: 'player-punishment-sets',
-    component: WordSetsView,
-    props: { type: 'Player Punishment' },
-    meta: { requiresAuth: true }
-  },
-  {
-    path: '/punishment-sets/creator',
-    name: 'creator-punishment-sets',
-    component: WordSetsView,
-    props: { type: 'Creator Punishment' },
     meta: { requiresAuth: true }
   },
   {
