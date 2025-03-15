@@ -237,7 +237,8 @@ export default {
     })
     
     // Watch for player grid and room status changes
-    watch(() => [playerGrid.value, roomData.value?.status], ([_, newStatus]) => {
+    watch(() => [playerGrid.value, roomData.value?.status], (newValues) => {
+      const newStatus = newValues[1]
       console.log(`[PLAYER ROOM] Watch triggered - grid changed or status changed to: ${newStatus}`)
       
       if (newStatus === 'active' && !loadingPlayerGrid.value && !hasValidPlayerGrid.value) {
