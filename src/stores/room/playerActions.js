@@ -18,13 +18,13 @@ export async function joinRoom(nickname, roomId) {
   if (!nickname) {
     console.log('[JOIN ROOM] Error: No nickname provided')
     notificationStore.showNotification('Please enter your nickname', 'error')
-    return null
+    return { success: false, error: 'No nickname provided' }
   }
   
   if (!roomId) {
     console.log('[JOIN ROOM] Error: No room ID provided')
     notificationStore.showNotification('Please enter a room code', 'error')
-    return null
+    return { success: false, error: 'No room code provided' }
   }
   
   // Make room ID uppercase
@@ -44,7 +44,7 @@ export async function joinRoom(nickname, roomId) {
       console.log(`[JOIN ROOM] Error: Room ${roomId} not found`)
       notificationStore.showNotification(`Room ${roomId} not found`, 'error')
       loading.value = false
-      return null
+      return { success: false, error: 'Room not found' }
     }
     
     // Get room data
@@ -56,7 +56,7 @@ export async function joinRoom(nickname, roomId) {
       console.log('[JOIN ROOM] Error: Room is not active')
       notificationStore.showNotification('This room is no longer active', 'error')
       loading.value = false
-      return null
+      return { success: false, error: 'Room not active' }
     }
     
     // Check if player already exists in the room
@@ -86,14 +86,13 @@ export async function joinRoom(nickname, roomId) {
     await loadRoom(roomId)
     
     console.log('[JOIN ROOM] Join process completed successfully')
-    return { success: true, roomId }
+    loading.value = false
+    return { success: true, roomId: roomId }
   } catch (error) {
     console.error('[JOIN ROOM] Error joining room:', error)
     notificationStore.showNotification(`Error joining room: ${error.message}`, 'error')
-    return null
-  } finally {
     loading.value = false
-    console.log('[JOIN ROOM] Set loading to false')
+    return { success: false, error: error.message }
   }
 }
 
