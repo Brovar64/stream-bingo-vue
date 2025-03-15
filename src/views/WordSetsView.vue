@@ -249,8 +249,10 @@ export default {
     
     // Create operations
     function openCreateModal(type) {
-      creatingType.value = type
-      showCreateModal.value = true
+      console.log('WordSetsView: openCreateModal called with type:', type);
+      creatingType.value = type;
+      showCreateModal.value = true;
+      console.log('WordSetsView: Modal should be visible now. showCreateModal =', showCreateModal.value);
     }
     
     // Modal closing
