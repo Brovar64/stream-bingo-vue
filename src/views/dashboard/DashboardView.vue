@@ -115,15 +115,6 @@
             {{ joinLoading ? 'Joining...' : 'Join Room' }}
           </button>
         </form>
-        
-        <div class="mt-4 pt-4 border-t border-gray-600">
-          <button
-            @click="useVueFire = !useVueFire" 
-            class="bg-background-lighter hover:bg-background-card text-sm px-2 py-1 rounded border border-gray-600"
-          >
-            {{ useVueFire ? '✅ Using VueFire (Recommended)' : '❌ Using Legacy Mode' }}
-          </button>
-        </div>
       </div>
       
       <!-- Your Rooms Card -->
@@ -139,12 +130,11 @@
           <p>You haven't created any rooms yet.</p>
         </div>
         
-        <div v-else class="space-y-4">
+        <div v-else class="space-y-2">
           <div v-for="room in userRooms" :key="room.id" class="bg-background-lighter p-4 rounded-lg">
-            <div class="flex justify-between items-start">
+            <div class="flex justify-between items-center">
               <div>
-                <h3 class="font-semibold">Room: {{ room.id }}</h3>
-                <p class="text-sm text-gray-400">{{ room.gridSize }}x{{ room.gridSize }} grid</p>
+                <h3 class="font-semibold">{{ room.id }}</h3>
                 <div class="flex items-center mt-1">
                   <span 
                     :class="['status-badge', room.status === 'active' ? 'bg-success' : 'bg-warning']"
@@ -152,7 +142,7 @@
                     {{ room.status === 'active' ? 'Active' : 'Setup' }}
                   </span>
                   <span class="ml-2 text-sm text-gray-400">
-                    {{ room.players?.length || 0 }} players
+                    {{ room.gridSize }}x{{ room.gridSize }}
                   </span>
                 </div>
               </div>
@@ -173,23 +163,14 @@
               </div>
             </div>
             
-            <!-- Quick join section for active rooms -->
-            <div v-if="room.status === 'active' && isTestUser" class="mt-3 pt-3 border-t border-gray-700">
-              <div class="flex items-center">
-                <button 
-                  @click="copyRoomCodeForTesting(room.id)"
-                  class="text-primary hover:text-primary-light text-sm flex items-center"
-                >
-                  <span class="mr-1">📋</span> Copy room code for testing
-                </button>
-                <button 
-                  v-if="username !== 'Admin'"
-                  @click="handleQuickJoinRoom(room.id)"
-                  class="ml-auto btn bg-success text-white text-xs py-1 px-2"
-                >
-                  Quick Join as {{ username }}
-                </button>
-              </div>
+            <!-- Quick join for testing -->
+            <div v-if="room.status === 'active' && isTestUser" class="mt-2 flex justify-end">
+              <button 
+                @click="handleQuickJoinRoom(room.id)"
+                class="text-primary hover:text-primary-light text-sm"
+              >
+                Join as player
+              </button>
             </div>
           </div>
         </div>
@@ -205,11 +186,10 @@
           :key="room.id"
           class="bg-background-lighter p-4 rounded-lg"
         >
-          <div class="flex justify-between">
+          <div class="flex justify-between items-center">
             <div>
-              <h3 class="font-semibold">Room: {{ room.id }}</h3>
-              <p class="text-sm text-gray-400">{{ room.gridSize }}x{{ room.gridSize }} grid</p>
-              <p class="text-sm text-gray-400">{{ room.players?.length || 0 }} players</p>
+              <h3 class="font-semibold">{{ room.id }}</h3>
+              <p class="text-sm text-gray-400">{{ room.gridSize }}x{{ room.gridSize }}</p>
             </div>
             <button 
               @click="handleQuickJoinRoom(room.id)"
@@ -249,7 +229,7 @@ export default {
     const joinLoading = ref(false)
     const newRoom = ref({
       code: '',
-      gridSize: 5,
+      gridSize: 3, // Set default to 3x3
       wordSetId: ''
     })
     const joinRoomData = ref({
@@ -258,7 +238,6 @@ export default {
     const userRooms = ref([])
     const allActiveRooms = ref([])
     const wordSets = ref([])
-    const useVueFire = ref(true) // Default to VueFire for better performance
     
     // Computed properties
     const username = computed(() => authStore.username)
@@ -346,13 +325,10 @@ export default {
       }
     }
     
-    // Join room using either VueFire or legacy mode
+    // Join room using VueFire only
     async function handleJoinRoom() {
-      console.log("[DASHBOARD] handleJoinRoom called, using VueFire:", useVueFire.value)
-      
       // Prevent action if already loading
       if (joinLoading.value) {
-        console.log("[DASHBOARD] Join already in progress, ignoring")
         return
       }
       
@@ -370,28 +346,16 @@ export default {
           return
         }
         
-        if (useVueFire.value) {
-          // Use VueFire version
-          const result = await vuefireRoomStore.joinRoom(username.value, roomCode)
-          
-          if (result && result.success) {
-            router.push(`/play-new/${roomCode}`)
-          } else {
-            joinLoading.value = false
-          }
+        // Always use VueFire version
+        const result = await vuefireRoomStore.joinRoom(username.value, roomCode)
+        
+        if (result && result.success) {
+          router.push(`/play-new/${roomCode}`)
         } else {
-          // Use legacy version
-          try {
-            await roomStore.joinRoom(username.value, roomCode)
-            router.push(`/play/${roomCode}`)
-          } catch (error) {
-            console.error('[DASHBOARD] Join failed:', error)
-            notificationStore.showNotification(`Failed to join room: ${error.message || 'Unknown error'}`, 'error')
-            joinLoading.value = false
-          }
+          joinLoading.value = false
         }
       } catch (error) {
-        console.error('[DASHBOARD] Join room error:', error)
+        console.error('Join room error:', error)
         notificationStore.showNotification(`Failed to join room: ${error.message}`, 'error')
         joinLoading.value = false
       }
@@ -399,39 +363,19 @@ export default {
     
     // Quick join a room
     async function handleQuickJoinRoom(roomId) {
-      console.log(`[DASHBOARD] Quick joining room: ${roomId}, using VueFire:`, useVueFire.value)
-      
       if (joinLoading.value) return
       
       joinLoading.value = true
       
       try {
-        if (useVueFire.value) {
-          // Use VueFire version
-          await vuefireRoomStore.joinRoom(username.value, roomId)
-          router.push(`/play-new/${roomId}`)
-        } else {
-          // Use legacy version
-          await roomStore.joinRoom(username.value, roomId)
-          router.push(`/play/${roomId}`)
-        }
+        // Always use VueFire
+        await vuefireRoomStore.joinRoom(username.value, roomId)
+        router.push(`/play-new/${roomId}`)
       } catch (error) {
-        console.error(`[DASHBOARD] Error joining room: ${error}`)
+        console.error(`Error joining room: ${error}`)
         notificationStore.showNotification(`Failed to join room: ${error.message || 'Unknown error'}`, 'error')
         joinLoading.value = false
       }
-    }
-    
-    // Copy room code for testing
-    function copyRoomCodeForTesting(roomId) {
-      navigator.clipboard.writeText(roomId)
-        .then(() => {
-          notificationStore.showNotification('Room code copied to clipboard', 'success')
-        })
-        .catch(err => {
-          console.error('Could not copy text: ', err)
-          notificationStore.showNotification('Failed to copy room code', 'error')
-        })
     }
     
     // Open a new login tab
@@ -491,13 +435,11 @@ export default {
       wordSets,
       username,
       isTestUser,
-      useVueFire,
       joinButton,
       generateRandomCode,
       createRoom,
       handleJoinRoom,
       handleQuickJoinRoom,
-      copyRoomCodeForTesting,
       openLoginTab,
       navigateToRoom,
       confirmDeleteRoom,
