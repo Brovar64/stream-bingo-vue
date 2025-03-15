@@ -77,8 +77,10 @@
             <h3 class="text-lg font-semibold mb-3">Edit Grid</h3>
             
             <div class="grid-container grid-scrollable">
-              <div class="side-label left-label">Room Creator Side</div>
-              <div class="side-label right-label">Players Side</div>
+              <div class="grid-labels">
+                <div class="left-label">Room Creator Side</div>
+                <div class="right-label">Players Side</div>
+              </div>
               
               <div class="punishment-grid" :style="`grid-template-rows: repeat(${roomData.gridHeight}, 1fr);`">
                 <!-- Grid cells -->
@@ -169,9 +171,8 @@
                       </option>
                     </select>
                     <select id="cellCol" v-model="newCell.col" class="form-control">
-                      <option v-for="col in 4" :key="col" :value="col-1"
-                              :disabled="(col <= 2 && newCell.side === 'right') || (col > 2 && newCell.side === 'left')">
-                        {{ col <= 2 ? 'Left' : 'Right' }} Col {{ col <= 2 ? col : col-2 }}
+                      <option v-for="col in 2" :key="col" :value="newCell.side === 'left' ? col-1 : col+1">
+                        Col {{ col }}
                       </option>
                     </select>
                   </div>
@@ -188,10 +189,16 @@
               <h3 class="text-md font-semibold mb-2">Quick Fill Options</h3>
               <div class="space-y-2">
                 <button 
+                  @click="showPunishmentSetsModal = true"
+                  class="btn bg-primary hover:bg-primary-dark text-white w-full mb-2"
+                >
+                  Use Punishment Sets
+                </button>
+                <button 
                   @click="showBulkAddModal = true"
                   class="btn bg-background-lighter hover:bg-gray-700 text-white w-full"
                 >
-                  Bulk Add Cells
+                  Bulk Add Text
                 </button>
               </div>
             </div>
@@ -238,8 +245,10 @@
             <h2 class="text-xl font-semibold mb-4">Punishment Bingo Game</h2>
             
             <div class="grid-container grid-scrollable-compact">
-              <div class="side-label left-label">Room Creator Side</div>
-              <div class="side-label right-label">Players Side</div>
+              <div class="grid-labels">
+                <div class="left-label">Room Creator Side</div>
+                <div class="right-label">Players Side</div>
+              </div>
               
               <div class="punishment-grid" :style="`grid-template-rows: repeat(${roomData.gridHeight}, 1fr);`">
                 <!-- Grid cells -->
@@ -353,6 +362,146 @@
       </div>
     </div>
     
+    <!-- Punishment Sets Modal -->
+    <div v-if="showPunishmentSetsModal" class="modal-overlay">
+      <div class="modal-container max-w-2xl">
+        <div class="modal-header">
+          <h3 class="text-lg font-semibold">Use Punishment Sets</h3>
+          <button @click="showPunishmentSetsModal = false" class="close-button">×</button>
+        </div>
+        
+        <div class="modal-body">
+          <div class="mb-4">
+            <div class="tab-container">
+              <button 
+                @click="punishmentSetTab = 'creator'" 
+                :class="['tab-button', punishmentSetTab === 'creator' ? 'active' : '']"
+              >
+                Creator Sets
+              </button>
+              <button 
+                @click="punishmentSetTab = 'player'" 
+                :class="['tab-button', punishmentSetTab === 'player' ? 'active' : '']"
+              >
+                Player Sets
+              </button>
+            </div>
+          </div>
+          
+          <!-- Creator Punishment Sets -->
+          <div v-if="punishmentSetTab === 'creator'" class="mb-4">
+            <div v-if="creatorPunishmentSets.length === 0" class="text-center py-4 text-gray-400">
+              No creator punishment sets found. 
+              <router-link to="/word-sets" class="text-primary hover:underline">Create one</router-link>
+            </div>
+            
+            <div v-else>
+              <div class="form-group">
+                <label for="creatorSetSelect" class="block text-sm font-medium text-gray-300 mb-1">
+                  Select Creator Punishment Set
+                </label>
+                <select 
+                  id="creatorSetSelect" 
+                  v-model="selectedCreatorPunishmentSet" 
+                  class="form-control"
+                >
+                  <option value="">Select a set...</option>
+                  <option 
+                    v-for="(set, index) in creatorPunishmentSets" 
+                    :key="index" 
+                    :value="index"
+                  >
+                    {{ set.name }} ({{ set.entries.length }} punishments)
+                  </option>
+                </select>
+              </div>
+              
+              <div v-if="selectedCreatorPunishmentSet !== ''" class="mt-4">
+                <h4 class="text-md font-semibold mb-2">Preview</h4>
+                <div class="bg-background-lighter p-3 rounded max-h-60 overflow-y-auto">
+                  <div 
+                    v-for="(entry, index) in creatorPunishmentSets[selectedCreatorPunishmentSet].entries" 
+                    :key="index"
+                    class="mb-2 p-2 bg-background-card rounded"
+                  >
+                    <div class="font-medium">{{ entry.phrase }}</div>
+                    <div class="text-xs italic text-gray-400">{{ entry.punishment }}</div>
+                  </div>
+                </div>
+                
+                <button 
+                  @click="importPunishmentSet('creator')" 
+                  class="btn btn-primary w-full mt-4"
+                >
+                  Import Creator Punishments
+                </button>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Player Punishment Sets -->
+          <div v-if="punishmentSetTab === 'player'" class="mb-4">
+            <div v-if="playerPunishmentSets.length === 0" class="text-center py-4 text-gray-400">
+              No player punishment sets found. 
+              <router-link to="/word-sets" class="text-primary hover:underline">Create one</router-link>
+            </div>
+            
+            <div v-else>
+              <div class="form-group">
+                <label for="playerSetSelect" class="block text-sm font-medium text-gray-300 mb-1">
+                  Select Player Punishment Set
+                </label>
+                <select 
+                  id="playerSetSelect" 
+                  v-model="selectedPlayerPunishmentSet" 
+                  class="form-control"
+                >
+                  <option value="">Select a set...</option>
+                  <option 
+                    v-for="(set, index) in playerPunishmentSets" 
+                    :key="index" 
+                    :value="index"
+                  >
+                    {{ set.name }} ({{ set.entries.length }} punishments)
+                  </option>
+                </select>
+              </div>
+              
+              <div v-if="selectedPlayerPunishmentSet !== ''" class="mt-4">
+                <h4 class="text-md font-semibold mb-2">Preview</h4>
+                <div class="bg-background-lighter p-3 rounded max-h-60 overflow-y-auto">
+                  <div 
+                    v-for="(entry, index) in playerPunishmentSets[selectedPlayerPunishmentSet].entries" 
+                    :key="index"
+                    class="mb-2 p-2 bg-background-card rounded"
+                  >
+                    <div class="font-medium">{{ entry.phrase }}</div>
+                    <div class="text-xs italic text-gray-400">{{ entry.punishment }}</div>
+                  </div>
+                </div>
+                
+                <button 
+                  @click="importPunishmentSet('player')" 
+                  class="btn btn-primary w-full mt-4"
+                >
+                  Import Player Punishments
+                </button>
+              </div>
+            </div>
+          </div>
+          
+          <div class="flex justify-end mt-4">
+            <button 
+              @click="showPunishmentSetsModal = false" 
+              class="btn bg-background-lighter hover:bg-gray-700 text-white"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+    
     <!-- Bulk Add Modal -->
     <div v-if="showBulkAddModal" class="modal-overlay">
       <div class="modal-container">
@@ -433,6 +582,8 @@ export default {
     const loading = ref(true)
     const showEditModal = ref(false)
     const showBulkAddModal = ref(false)
+    const showPunishmentSetsModal = ref(false)
+    const punishmentSetTab = ref('creator')
     const editingCellId = ref(null)
     const editingCell = ref({
       phrase: '',
@@ -451,6 +602,12 @@ export default {
     
     const bulkEntries = ref('')
     const bulkSide = ref('left')
+    
+    // Punishment Sets
+    const creatorPunishmentSets = ref([])
+    const playerPunishmentSets = ref([])
+    const selectedCreatorPunishmentSet = ref('')
+    const selectedPlayerPunishmentSet = ref('')
     
     // Computed properties
     const roomData = computed(() => roomStore.currentRoom)
@@ -482,6 +639,10 @@ export default {
       
       try {
         await roomStore.loadRoom(roomId)
+        
+        // Load punishment sets from local storage
+        loadPunishmentSets()
+        
         loading.value = false
       } catch (error) {
         console.error('Error loading room:', error)
@@ -489,6 +650,31 @@ export default {
         router.push('/dashboard')
       }
     })
+    
+    // Load punishment sets from localStorage
+    function loadPunishmentSets() {
+      // Load creator punishment sets
+      const storedCreatorSets = localStorage.getItem('bingoCreatorPunishmentSets')
+      if (storedCreatorSets) {
+        try {
+          creatorPunishmentSets.value = JSON.parse(storedCreatorSets)
+        } catch (error) {
+          console.error('Failed to parse creator punishment sets:', error)
+          creatorPunishmentSets.value = []
+        }
+      }
+      
+      // Load player punishment sets
+      const storedPlayerSets = localStorage.getItem('bingoPlayerPunishmentSets')
+      if (storedPlayerSets) {
+        try {
+          playerPunishmentSets.value = JSON.parse(storedPlayerSets)
+        } catch (error) {
+          console.error('Failed to parse player punishment sets:', error)
+          playerPunishmentSets.value = []
+        }
+      }
+    }
     
     // Format timestamp
     function formatTime(timestamp) {
@@ -577,13 +763,6 @@ export default {
       const position = { row: newCell.value.row, col: newCell.value.col }
       const { phrase, punishment, side } = newCell.value
       
-      // Handle column positioning based on side
-      if (side === 'left' && position.col > 1) {
-        position.col = 0
-      } else if (side === 'right' && position.col < 2) {
-        position.col = 2
-      }
-      
       try {
         const result = await roomStore.addCell(position, phrase, punishment, side)
         
@@ -599,6 +778,71 @@ export default {
         console.error('Error adding cell:', error)
         notificationStore.showNotification('Error adding cell', 'error')
       }
+    }
+    
+    // Import punishment set
+    async function importPunishmentSet(type) {
+      const side = type === 'creator' ? 'left' : 'right'
+      let entries = []
+      
+      if (type === 'creator' && selectedCreatorPunishmentSet !== '') {
+        entries = creatorPunishmentSets.value[selectedCreatorPunishmentSet].entries
+      } else if (type === 'player' && selectedPlayerPunishmentSet !== '') {
+        entries = playerPunishmentSets.value[selectedPlayerPunishmentSet].entries
+      } else {
+        notificationStore.showNotification('No punishment set selected', 'error')
+        return
+      }
+      
+      if (entries.length === 0) {
+        notificationStore.showNotification('Selected punishment set is empty', 'error')
+        return
+      }
+      
+      // Find empty cells on the chosen side
+      const emptyCells = []
+      for (let row = 0; row < roomData.value.gridHeight; row++) {
+        // Define column range based on side
+        const colStart = side === 'left' ? 0 : 2
+        const colEnd = side === 'left' ? 2 : 4
+        
+        for (let col = colStart; col < colEnd; col++) {
+          const cellId = `${row}_${col}`
+          if (!cellContent(cellId)) {
+            emptyCells.push({ row, col })
+          }
+        }
+      }
+      
+      // Check if we have enough empty cells
+      if (emptyCells.length < entries.length) {
+        notificationStore.showNotification(
+          `Not enough empty cells (need ${entries.length}, have ${emptyCells.length})`,
+          'error'
+        )
+        return
+      }
+      
+      // Add entries to empty cells
+      let successCount = 0
+      for (let i = 0; i < entries.length; i++) {
+        const entry = entries[i]
+        const position = emptyCells[i]
+        
+        try {
+          const result = await roomStore.addCell(position, entry.phrase, entry.punishment, side)
+          if (result.success) {
+            successCount++
+          }
+        } catch (error) {
+          console.error('Error adding punishment from set:', error)
+        }
+      }
+      
+      notificationStore.showNotification(`Added ${successCount} cells successfully`, 'success')
+      showPunishmentSetsModal.value = false
+      selectedCreatorPunishmentSet.value = ''
+      selectedPlayerPunishmentSet.value = ''
     }
     
     // Add bulk cells
@@ -779,12 +1023,18 @@ export default {
       requiredCells,
       showEditModal,
       showBulkAddModal,
+      showPunishmentSetsModal,
+      punishmentSetTab,
       editingCellId,
       editingCell,
       newCell,
       bulkEntries,
       bulkSide,
       parsedBulkEntries,
+      creatorPunishmentSets,
+      playerPunishmentSets,
+      selectedCreatorPunishmentSet,
+      selectedPlayerPunishmentSet,
       formatTime,
       cellContent,
       isCellCalled,
@@ -794,6 +1044,7 @@ export default {
       saveCell,
       addManualCell,
       addBulkCells,
+      importPunishmentSet,
       removeCell,
       startGame,
       resetGame,
@@ -827,9 +1078,6 @@ export default {
 /* Grid Layout */
 .grid-container {
   @apply relative my-6;
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  grid-template-areas: "labels labels" "grid grid";
 }
 
 .grid-scrollable {
@@ -841,22 +1089,19 @@ export default {
   max-height: calc(100vh - 250px);
 }
 
-.side-label {
-  @apply py-2 text-center font-semibold text-sm;
+.grid-labels {
+  @apply flex w-full mb-2;
 }
 
 .left-label {
-  grid-area: left-label;
-  @apply bg-blue-500 bg-opacity-20 rounded-t-lg;
+  @apply py-2 text-center font-semibold text-sm flex-1 bg-blue-500 bg-opacity-20 rounded-t-lg mr-1;
 }
 
 .right-label {
-  grid-area: right-label;
-  @apply bg-green-500 bg-opacity-20 rounded-t-lg;
+  @apply py-2 text-center font-semibold text-sm flex-1 bg-green-500 bg-opacity-20 rounded-t-lg ml-1;
 }
 
 .punishment-grid {
-  grid-area: grid;
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   grid-gap: 8px;
@@ -982,5 +1227,17 @@ export default {
 
 .form-group label {
   @apply block text-sm font-medium text-gray-300 mb-1;
+}
+
+.tab-container {
+  @apply flex space-x-2;
+}
+
+.tab-button {
+  @apply px-4 py-2 rounded-lg bg-background-lighter hover:bg-gray-700 transition-colors;
+}
+
+.tab-button.active {
+  @apply bg-primary text-white;
 }
 </style>
