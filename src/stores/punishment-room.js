@@ -107,7 +107,7 @@ export const usePunishmentRoomStore = defineStore('punishmentRoom', () => {
       const roomRef = doc(db, 'punishmentRooms', currentRoom.value.id)
       
       // Create a unique cell ID
-      const cellId = \`\${position.row}_\${position.col}\`
+      const cellId = `${position.row}_${position.col}`
       
       // Update the grid
       const updatedGrid = {
