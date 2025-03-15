@@ -334,7 +334,7 @@ export default {
       }
     }
     
-    // Simplified join room handler - directly uses the room ID without waiting for a success object
+    // Join room from the form
     async function handleJoinRoom() {
       console.log("[DASHBOARD] handleJoinRoom called")
       
@@ -361,22 +361,14 @@ export default {
           return
         }
         
-        // Call the join function - we don't care about the return value anymore
-        const result = await roomStore.joinRoom(username.value, roomCode)
-        console.log("[DASHBOARD] Join result:", result)
-        
-        // Check if result has an id property (a room object) or if it's truthy (our original check)
-        // This handles both formats that might be returned
-        if (result && (result.id || result.success || result === true)) {
-          console.log(`[DASHBOARD] Successfully joined room, navigating...`)
-          
-          // We need to use nextTick to ensure the UI updates before navigation
-          await nextTick()
-          
-          // Navigate directly to the room using the original room code
+        // Try to join the room - we don't care about the return value
+        try {
+          await roomStore.joinRoom(username.value, roomCode)
+          console.log(`[DASHBOARD] Join complete, navigating to room: ${roomCode}`)
           router.push(`/play/${roomCode}`)
-        } else {
-          console.log("[DASHBOARD] Join failed:", result?.error || "unknown error")
+        } catch (error) {
+          console.error('[DASHBOARD] Join failed:', error)
+          notificationStore.showNotification(`Failed to join room: ${error.message || 'Unknown error'}`, 'error')
           joinLoading.value = false
         }
       } catch (error) {
@@ -386,32 +378,21 @@ export default {
       }
     }
     
-    // Simplified quick join handler that accepts any truthy result
+    // Ultra-simplified quick join room handler
     async function handleQuickJoinRoom(roomId) {
-      console.log(`[DASHBOARD] handleQuickJoinRoom called for room: ${roomId}`)
+      console.log(`[DASHBOARD] Joining room: ${roomId}`)
       
-      // Prevent action if already loading
-      if (joinLoading.value) {
-        console.log("[DASHBOARD] Join already in progress, ignoring")
-        return
-      }
+      if (joinLoading.value) return
       
       joinLoading.value = true
-      console.log("[DASHBOARD] Set joinLoading to true")
       
       try {
-        // Call join but now we'll just navigate regardless of the return value format
+        // Just call join and immediately navigate, no results checking
         await roomStore.joinRoom(username.value, roomId)
-        console.log(`[DASHBOARD] Join call completed, navigating to room: ${roomId}`)
-        
-        // Give a moment for any state updates to complete
-        await nextTick()
-        
-        // Always navigate after the join call completes
         router.push(`/play/${roomId}`)
       } catch (error) {
-        console.error('[DASHBOARD] Quick join room error:', error)
-        notificationStore.showNotification(`Failed to join room: ${error.message}`, 'error')
+        console.error(`[DASHBOARD] Error joining room: ${error}`)
+        notificationStore.showNotification(`Failed to join room: ${error.message || 'Unknown error'}`, 'error')
         joinLoading.value = false
       }
     }
