@@ -93,22 +93,6 @@
         <h2 class="text-xl font-semibold mb-4">Join Existing Room</h2>
         <form @submit.prevent="joinRoom" class="space-y-4">
           <div class="form-group">
-            <label for="nickname">Player Nickname</label>
-            <input 
-              type="text" 
-              id="nickname" 
-              v-model="joinRoomData.nickname"
-              class="form-control"
-              placeholder="Enter your nickname"
-              required
-              autocomplete="off"
-            >
-            <p class="text-xs text-gray-400 mt-1">
-              This is the name that will be displayed in the game
-            </p>
-          </div>
-          
-          <div class="form-group">
             <label for="joinRoomCode">Room Code</label>
             <input 
               type="text" 
@@ -218,7 +202,7 @@
               <p class="text-sm text-gray-400">{{ room.players?.length || 0 }} players</p>
             </div>
             <button 
-              @click="setJoinRoomCode(room.id)"
+              @click="quickJoinRoom(room.id)"
               class="btn bg-primary hover:bg-primary-dark text-white text-sm py-1 px-3"
             >
               Join
@@ -231,7 +215,7 @@
 </template>
 
 <script>
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useRoomStore } from '@/stores/room'
@@ -254,7 +238,6 @@ export default {
       wordSetId: ''
     })
     const joinRoomData = ref({
-      nickname: '',
       code: ''
     })
     const userRooms = ref([])
@@ -267,21 +250,9 @@ export default {
       return authStore.user?.authMethod === 'test'
     })
     
-    // Watch for changes to username and update nickname field
-    watch(username, (newUsername) => {
-      if (newUsername && !joinRoomData.value.nickname) {
-        joinRoomData.value.nickname = newUsername
-      }
-    })
-    
     // Load user's rooms on component mount
     onMounted(async () => {
       loading.value = true
-      
-      // Set default nickname to current username if available
-      if (authStore.username) {
-        joinRoomData.value.nickname = authStore.username
-      }
       
       // Load user's rooms
       userRooms.value = await roomStore.loadUserRooms()
@@ -348,9 +319,6 @@ export default {
         )
         
         if (roomId) {
-          // Store created room ID for quick access later
-          sessionStorage.setItem('lastCreatedRoomId', roomId)
-          
           // Navigate to the admin room page
           router.push(`/admin/room/${roomId}`)
         }
@@ -370,20 +338,12 @@ export default {
         // Uppercase the room code
         joinRoomData.value.code = joinRoomData.value.code.toUpperCase()
         
-        // Save the nickname for later use
-        if (joinRoomData.value.nickname) {
-          // Save for this specific room
-          sessionStorage.setItem(`room_${joinRoomData.value.code}_nickname`, joinRoomData.value.nickname)
-        }
+        // Always use the current username when joining
+        const result = await roomStore.joinRoom(username.value, joinRoomData.value.code)
         
-        const roomData = await roomStore.joinRoom(
-          joinRoomData.value.nickname,
-          joinRoomData.value.code
-        )
-        
-        if (roomData) {
-          // Navigate to the player room page
-          router.push(`/play/${roomData.id}`)
+        if (result) {
+          // Navigate to the player room page - directly redirect
+          router.push(`/play/${joinRoomData.value.code}`)
         }
       } catch (error) {
         console.error('Join room error:', error)
@@ -393,32 +353,16 @@ export default {
       }
     }
     
-    // Set the join room code (from the active rooms list)
-    function setJoinRoomCode(code) {
-      joinRoomData.value.code = code
-      // Scroll to join form
-      document.getElementById('joinRoomCode').scrollIntoView({ behavior: 'smooth' })
-      // Focus the input
-      setTimeout(() => {
-        document.getElementById('joinRoomCode').focus()
-      }, 500)
-    }
-    
-    // Quick join a room (without form)
+    // Quick join a room (for active rooms section)
     async function quickJoinRoom(roomId) {
       joinLoading.value = true
       
       try {
-        // Save the nickname for later use
-        if (username.value) {
-          sessionStorage.setItem(`room_${roomId}_nickname`, username.value)
-        }
+        const result = await roomStore.joinRoom(username.value, roomId)
         
-        const roomData = await roomStore.joinRoom(username.value, roomId)
-        
-        if (roomData) {
-          // Navigate to the player room page
-          router.push(`/play/${roomData.id}`)
+        if (result) {
+          // Navigate to the player room page - directly redirect
+          router.push(`/play/${roomId}`)
         }
       } catch (error) {
         console.error('Quick join room error:', error)
@@ -500,7 +444,6 @@ export default {
       generateRandomCode,
       createRoom,
       joinRoom,
-      setJoinRoomCode,
       quickJoinRoom,
       copyRoomCodeForTesting,
       openLoginTab,
