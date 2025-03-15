@@ -41,7 +41,7 @@
         </div>
         
         <button 
-          @click="createWordSet" 
+          @click="openCreateModal('word')" 
           class="btn btn-primary w-full"
           :disabled="!newWordSetName.trim()"
         >
@@ -64,7 +64,7 @@
         </div>
         
         <button 
-          @click="createPlayerPunishmentSet" 
+          @click="openCreateModal('playerPunishment')" 
           class="btn btn-primary w-full"
           :disabled="!newPlayerPunishmentSetName.trim()"
         >
@@ -87,7 +87,7 @@
         </div>
         
         <button 
-          @click="createCreatorPunishmentSet" 
+          @click="openCreateModal('creatorPunishment')" 
           class="btn btn-primary w-full"
           :disabled="!newCreatorPunishmentSetName.trim()"
         >
@@ -115,9 +115,11 @@
     
     <!-- Create Set Modal -->
     <CreateSetModal
-      v-model:visible="showCreateModal"
+      v-if="showCreateModal"
+      :visible="showCreateModal"
       :type="creatingType"
       :set-name="creatingName"
+      @update:visible="showCreateModal = $event"
       @save="handleSaveSet"
       @cancel="closeCreateModal"
       @file-error="handleFileError"
@@ -125,11 +127,13 @@
     
     <!-- View/Edit Modal -->
     <ViewEditModal
-      v-model:visible="showViewModal"
+      v-if="showViewModal"
+      :visible="showViewModal"
       :type="viewingType"
       :set-name="viewingName"
       :set-words="viewingType === 'word' ? editingWordSet.words : []"
       :set-punishments="viewingType !== 'word' ? editingPunishmentSet.entries : []"
+      @update:visible="showViewModal = $event"
       @save="handleUpdateSet"
       @cancel="closeViewModal"
       @file-error="handleFileError"
@@ -292,23 +296,14 @@ export default {
       notificationStore.showNotification(message, 'error')
     }
     
-    // Create operations - Direct button handlers
-    function createWordSet() {
-      if (!newWordSetName.value.trim()) return;
-      creatingType.value = 'word';
-      showCreateModal.value = true;
-    }
-    
-    function createPlayerPunishmentSet() {
-      if (!newPlayerPunishmentSetName.value.trim()) return;
-      creatingType.value = 'playerPunishment';
-      showCreateModal.value = true;
-    }
-    
-    function createCreatorPunishmentSet() {
-      if (!newCreatorPunishmentSetName.value.trim()) return;
-      creatingType.value = 'creatorPunishment';
-      showCreateModal.value = true;
+    // Create operations
+    function openCreateModal(type) {
+      console.log('Opening create modal:', type);
+      creatingType.value = type;
+      // Use setTimeout to avoid potential race conditions
+      setTimeout(() => {
+        showCreateModal.value = true;
+      }, 0);
     }
     
     // Modal closing
@@ -501,12 +496,8 @@ export default {
       creatingName,
       viewingName,
       
-      // Methods - direct button actions
-      createWordSet,
-      createPlayerPunishmentSet,
-      createCreatorPunishmentSet,
-      
       // Methods
+      openCreateModal,
       handleSaveSet,
       handleFileError,
       viewWordSet,
