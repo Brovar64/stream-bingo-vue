@@ -6,11 +6,11 @@
         <router-link to="/word-sets" class="btn bg-primary hover:bg-primary-dark text-white">
           Manage Word Sets
         </router-link>
-        <div class="dropdown relative">
+        <div class="dropdown relative group">
           <button class="btn bg-background-lighter hover:bg-gray-700 text-white">
             Manage Punishment Sets ▼
           </button>
-          <div class="dropdown-menu absolute hidden bg-background-card rounded shadow-lg py-2 z-50">
+          <div class="dropdown-menu hidden group-hover:block absolute bg-background-card rounded shadow-lg py-2 z-50 right-0">
             <router-link 
               to="/punishment-sets/player" 
               class="block px-4 py-2 hover:bg-background-lighter"
@@ -32,7 +32,10 @@
     </div>
     
     <!-- Rest of the dashboard remains the same -->
-    <!-- ... (previous code) ... -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <!-- Existing content -->
+      <!-- ... -->
+    </div>
   </div>
 </template>
 
@@ -49,16 +52,12 @@ export default {
     const authStore = useAuthStore()
     const notificationStore = useNotificationStore()
     
-    // Existing methods and logic from the previous implementation
     function logout() {
       authStore.logout()
       router.push('/')
     }
     
-    // Add other methods from the existing implementation
-    
     return {
-      // ... (other existing computed properties and methods)
       logout
     }
   }
@@ -66,7 +65,14 @@ export default {
 </script>
 
 <style scoped>
+.dropdown .dropdown-menu {
+  transition: all 0.3s ease;
+  opacity: 0;
+  visibility: hidden;
+}
+
 .dropdown:hover .dropdown-menu {
-  display: block;
+  opacity: 1;
+  visibility: visible;
 }
 </style>
