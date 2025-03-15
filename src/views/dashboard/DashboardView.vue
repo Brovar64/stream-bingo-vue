@@ -4,27 +4,8 @@
       <h1 class="title">Dashboard</h1>
       <div class="flex space-x-4">
         <router-link to="/word-sets" class="btn bg-primary hover:bg-primary-dark text-white">
-          Manage Word Sets
+          Manage Sets
         </router-link>
-        <div class="dropdown relative group">
-          <button class="btn bg-background-lighter hover:bg-gray-700 text-white">
-            Manage Punishment Sets ▼
-          </button>
-          <div class="dropdown-menu hidden group-hover:block absolute bg-background-card rounded shadow-lg py-2 z-50 right-0">
-            <router-link 
-              to="/punishment-sets/player" 
-              class="block px-4 py-2 hover:bg-background-lighter"
-            >
-              Player Punishments
-            </router-link>
-            <router-link 
-              to="/punishment-sets/creator" 
-              class="block px-4 py-2 hover:bg-background-lighter"
-            >
-              Creator Punishments
-            </router-link>
-          </div>
-        </div>
         <button @click="logout" class="btn bg-background-lighter hover:bg-gray-700 text-white">
           Logout
         </button>
@@ -346,6 +327,11 @@ export default {
       router.push('/')
     }
     
+    // Open new login tab for testing
+    function openLoginTab() {
+      window.open('/login', '_blank')
+    }
+    
     return {
       loading,
       joinLoading,
@@ -360,7 +346,8 @@ export default {
       handleJoinRoom,
       navigateToRoom,
       confirmDeleteRoom,
-      logout
+      logout,
+      openLoginTab
     }
   }
 }
@@ -369,16 +356,5 @@ export default {
 <style scoped>
 .status-badge {
   @apply text-xs py-1 px-2 rounded-full text-white;
-}
-
-.dropdown .dropdown-menu {
-  transition: all 0.3s ease;
-  opacity: 0;
-  visibility: hidden;
-}
-
-.dropdown:hover .dropdown-menu {
-  opacity: 1;
-  visibility: visible;
 }
 </style>
