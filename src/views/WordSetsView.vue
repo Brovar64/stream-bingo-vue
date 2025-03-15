@@ -8,6 +8,14 @@
     </div>
     <p class="subtitle mb-8">Create and manage reusable sets for your bingo rooms</p>
     
+    <!-- Debug Info for Troubleshooting -->
+    <div class="bg-red-900 text-white p-4 mb-4 rounded">
+      <h3 class="font-bold mb-1">Debug Info:</h3>
+      <div>showCreateModal: {{ showCreateModal }}</div>
+      <div>creatingType: {{ creatingType }}</div>
+      <div>creatingName: {{ creatingName }}</div>
+    </div>
+    
     <!-- Management Tabs -->
     <div class="tab-container mb-6">
       <button 
@@ -41,7 +49,7 @@
         </div>
         
         <button 
-          @click="openCreateModal('word')" 
+          @click="manualCreateWordSet()" 
           class="btn btn-primary w-full"
           :disabled="!newWordSetName.trim()"
         >
@@ -64,7 +72,7 @@
         </div>
         
         <button 
-          @click="openCreateModal('playerPunishment')" 
+          @click="manualCreatePlayerPunishment()" 
           class="btn btn-primary w-full"
           :disabled="!newPlayerPunishmentSetName.trim()"
         >
@@ -87,13 +95,20 @@
         </div>
         
         <button 
-          @click="openCreateModal('creatorPunishment')" 
+          @click="manualCreateCreatorPunishment()" 
           class="btn btn-primary w-full"
           :disabled="!newCreatorPunishmentSetName.trim()"
         >
           Create Creator Punishments
         </button>
       </div>
+    </div>
+    
+    <!-- Create Test Word Set (just to test localStorage) -->
+    <div class="mb-6">
+      <button @click="createTestWordSet" class="btn bg-yellow-600 text-white">
+        DEBUG: Create Test Word Set
+      </button>
     </div>
     
     <!-- Manage Sets Tab -->
@@ -142,7 +157,7 @@
 </template>
 
 <script>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useNotificationStore } from '@/stores/notification'
 
 // Import components
@@ -191,6 +206,11 @@ export default {
     const creatingType = ref('word') // 'word', 'playerPunishment', 'creatorPunishment'
     const viewingType = ref('word')
     
+    // Add watcher for debugging
+    watch(showCreateModal, (newVal) => {
+      console.log("showCreateModal changed to:", newVal);
+    });
+    
     // Computed properties for currently editing items
     const editingWordSet = computed(() => {
       if (selectedWordSetIndex.value === -1) return { name: '', words: [] }
@@ -222,6 +242,9 @@ export default {
     // Lifecycle hooks
     onMounted(() => {
       loadSets()
+      console.log("Component mounted, checking initial states:");
+      console.log("- showCreateModal:", showCreateModal.value);
+      console.log("- creatingType:", creatingType.value);
     })
     
     // Methods for data loading/saving
@@ -296,6 +319,90 @@ export default {
       notificationStore.showNotification(message, 'error')
     }
     
+    // Create test set directly in localStorage
+    function createTestWordSet() {
+      const testSet = {
+        name: "Test Set " + Math.floor(Math.random() * 100),
+        words: ["Word1", "Word2", "Word3"],
+        createdAt: new Date().toISOString()
+      };
+      
+      wordSets.value.push(testSet);
+      saveWordSets();
+      notificationStore.showNotification(`Test word set created successfully`, 'success');
+      
+      // Switch to manage tab
+      activeTab.value = 'manage';
+      manageTab.value = 'words';
+    }
+    
+    // Manual creation functions
+    function manualCreateWordSet() {
+      if (!newWordSetName.value.trim()) return;
+      
+      // Create empty word set directly
+      const newSet = {
+        name: newWordSetName.value.trim(),
+        words: [],
+        createdAt: new Date().toISOString()
+      };
+      
+      wordSets.value.push(newSet);
+      saveWordSets();
+      notificationStore.showNotification(`Word set "${newWordSetName.value}" created successfully`, 'success');
+      
+      // Reset form
+      newWordSetName.value = '';
+      
+      // Switch to manage tab
+      activeTab.value = 'manage';
+      manageTab.value = 'words';
+    }
+    
+    function manualCreatePlayerPunishment() {
+      if (!newPlayerPunishmentSetName.value.trim()) return;
+      
+      // Create empty punishment set directly
+      const newSet = {
+        name: newPlayerPunishmentSetName.value.trim(),
+        entries: [],
+        createdAt: new Date().toISOString()
+      };
+      
+      playerPunishmentSets.value.push(newSet);
+      savePlayerPunishmentSets();
+      notificationStore.showNotification(`Player punishment set "${newPlayerPunishmentSetName.value}" created successfully`, 'success');
+      
+      // Reset form
+      newPlayerPunishmentSetName.value = '';
+      
+      // Switch to manage tab
+      activeTab.value = 'manage';
+      manageTab.value = 'playerPunishments';
+    }
+    
+    function manualCreateCreatorPunishment() {
+      if (!newCreatorPunishmentSetName.value.trim()) return;
+      
+      // Create empty punishment set directly
+      const newSet = {
+        name: newCreatorPunishmentSetName.value.trim(),
+        entries: [],
+        createdAt: new Date().toISOString()
+      };
+      
+      creatorPunishmentSets.value.push(newSet);
+      saveCreatorPunishmentSets();
+      notificationStore.showNotification(`Creator punishment set "${newCreatorPunishmentSetName.value}" created successfully`, 'success');
+      
+      // Reset form
+      newCreatorPunishmentSetName.value = '';
+      
+      // Switch to manage tab
+      activeTab.value = 'manage';
+      manageTab.value = 'creatorPunishments';
+    }
+    
     // Create operations
     function openCreateModal(type) {
       console.log('Opening create modal:', type);
@@ -303,6 +410,7 @@ export default {
       // Use setTimeout to avoid potential race conditions
       setTimeout(() => {
         showCreateModal.value = true;
+        console.log("showCreateModal set to true");
       }, 0);
     }
     
@@ -495,6 +603,12 @@ export default {
       viewingType,
       creatingName,
       viewingName,
+      
+      // Debug methods
+      createTestWordSet,
+      manualCreateWordSet,
+      manualCreatePlayerPunishment,
+      manualCreateCreatorPunishment,
       
       // Methods
       openCreateModal,
