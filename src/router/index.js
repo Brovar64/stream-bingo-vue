@@ -7,6 +7,7 @@ const LoginView = () => import('@/views/auth/LoginView.vue')
 const DashboardView = () => import('@/views/dashboard/DashboardView.vue')
 const AdminRoomView = () => import('@/views/room/AdminRoomView.vue')
 const PlayerRoomView = () => import('@/views/room/PlayerRoomView.vue')
+const VueFirePlayerView = () => import('@/views/room/VueFirePlayerView.vue')
 const WordSetsView = () => import('@/views/WordSetsView.vue')
 const NotFoundView = () => import('@/views/NotFoundView.vue')
 
@@ -39,6 +40,11 @@ const routes = [
     path: '/play/:id',
     name: 'player-room',
     component: PlayerRoomView
+  },
+  {
+    path: '/play-new/:id',
+    name: 'vuefire-player-room',
+    component: VueFirePlayerView
   },
   {
     path: '/word-sets',
