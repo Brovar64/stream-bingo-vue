@@ -91,7 +91,7 @@
       <!-- Join Room Card -->
       <div class="card">
         <h2 class="text-xl font-semibold mb-4">Join Existing Room</h2>
-        <form @submit.prevent="joinRoom" class="space-y-4">
+        <form @submit.prevent="handleJoinRoom" class="space-y-4">
           <div class="form-group">
             <label for="joinRoomCode">Room Code</label>
             <input 
@@ -110,6 +110,7 @@
             type="submit" 
             class="btn btn-primary w-full"
             :disabled="joinLoading"
+            ref="joinButton"
           >
             {{ joinLoading ? 'Joining...' : 'Join Room' }}
           </button>
@@ -174,7 +175,7 @@
                 </button>
                 <button 
                   v-if="username !== 'Admin'"
-                  @click="quickJoinRoom(room.id)"
+                  @click="handleQuickJoinRoom(room.id)"
                   class="ml-auto btn bg-success text-white text-xs py-1 px-2"
                 >
                   Quick Join as {{ username }}
@@ -202,7 +203,7 @@
               <p class="text-sm text-gray-400">{{ room.players?.length || 0 }} players</p>
             </div>
             <button 
-              @click="quickJoinRoom(room.id)"
+              @click="handleQuickJoinRoom(room.id)"
               class="btn bg-primary hover:bg-primary-dark text-white text-sm py-1 px-3"
             >
               Join
@@ -215,7 +216,7 @@
 </template>
 
 <script>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useRoomStore } from '@/stores/room'
@@ -228,6 +229,9 @@ export default {
     const authStore = useAuthStore()
     const roomStore = useRoomStore()
     const notificationStore = useNotificationStore()
+    
+    // Refs
+    const joinButton = ref(null)
     
     // State
     const loading = ref(false)
@@ -330,50 +334,88 @@ export default {
       }
     }
     
-    // Join an existing room
-    async function joinRoom() {
-      // Prevent double submission
-      if (joinLoading.value) return
+    // New improved join room handler
+    async function handleJoinRoom() {
+      console.log("[DASHBOARD] handleJoinRoom called")
+      
+      // Prevent action if already loading
+      if (joinLoading.value) {
+        console.log("[DASHBOARD] Join already in progress, ignoring")
+        return
+      }
+      
+      // Disable the button to prevent double clicks
       joinLoading.value = true
+      console.log("[DASHBOARD] Set joinLoading to true")
       
       try {
-        // Uppercase the room code
-        const roomCode = joinRoomData.value.code.toUpperCase()
+        // Get and normalize the room code
+        const roomCode = joinRoomData.value.code.trim().toUpperCase()
         joinRoomData.value.code = roomCode
+        console.log(`[DASHBOARD] Joining room: ${roomCode}`)
         
-        // Always use the current username when joining
+        if (!roomCode) {
+          notificationStore.showNotification('Please enter a room code', 'error')
+          joinLoading.value = false
+          console.log("[DASHBOARD] No room code provided")
+          return
+        }
+        
+        // Join the room
         const result = await roomStore.joinRoom(username.value, roomCode)
+        console.log("[DASHBOARD] Join result:", result)
         
-        if (result) {
-          // Navigate to the player room page - directly redirect
+        if (result && result.success) {
+          console.log(`[DASHBOARD] Successfully joined room ${result.roomId}, navigating...`)
+          
+          // We need to use nextTick to ensure the UI updates before navigation
+          await nextTick()
+          
+          // Navigate directly to the room
           router.push(`/play/${roomCode}`)
         } else {
+          console.log("[DASHBOARD] Join failed or returned no result")
           joinLoading.value = false
         }
       } catch (error) {
-        console.error('Join room error:', error)
+        console.error('[DASHBOARD] Join room error:', error)
         notificationStore.showNotification(`Failed to join room: ${error.message}`, 'error')
         joinLoading.value = false
       }
     }
     
-    // Quick join a room (for active rooms section)
-    async function quickJoinRoom(roomId) {
-      // Prevent double submission
-      if (joinLoading.value) return
+    // New improved quick join room handler
+    async function handleQuickJoinRoom(roomId) {
+      console.log(`[DASHBOARD] handleQuickJoinRoom called for room: ${roomId}`)
+      
+      // Prevent action if already loading
+      if (joinLoading.value) {
+        console.log("[DASHBOARD] Join already in progress, ignoring")
+        return
+      }
+      
       joinLoading.value = true
+      console.log("[DASHBOARD] Set joinLoading to true")
       
       try {
+        // Join the room
         const result = await roomStore.joinRoom(username.value, roomId)
+        console.log("[DASHBOARD] Quick join result:", result)
         
-        if (result) {
-          // Navigate to the player room page - directly redirect
+        if (result && result.success) {
+          console.log(`[DASHBOARD] Successfully quick-joined room ${result.roomId}, navigating...`)
+          
+          // We need to use nextTick to ensure the UI updates before navigation
+          await nextTick()
+          
+          // Navigate directly to the room
           router.push(`/play/${roomId}`)
         } else {
+          console.log("[DASHBOARD] Quick join failed or returned no result")
           joinLoading.value = false
         }
       } catch (error) {
-        console.error('Quick join room error:', error)
+        console.error('[DASHBOARD] Quick join room error:', error)
         notificationStore.showNotification(`Failed to join room: ${error.message}`, 'error')
         joinLoading.value = false
       }
@@ -448,10 +490,11 @@ export default {
       wordSets,
       username,
       isTestUser,
+      joinButton,
       generateRandomCode,
       createRoom,
-      joinRoom,
-      quickJoinRoom,
+      handleJoinRoom,
+      handleQuickJoinRoom,
       copyRoomCodeForTesting,
       openLoginTab,
       navigateToRoom,
