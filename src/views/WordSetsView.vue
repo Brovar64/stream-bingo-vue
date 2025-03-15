@@ -41,7 +41,7 @@
         </div>
         
         <button 
-          @click="createWordSet" 
+          @click="openCreateModal('word')" 
           class="btn btn-primary w-full"
           :disabled="!newWordSetName.trim()"
         >
@@ -64,7 +64,7 @@
         </div>
         
         <button 
-          @click="createPlayerPunishmentSet" 
+          @click="openCreateModal('playerPunishment')" 
           class="btn btn-primary w-full"
           :disabled="!newPlayerPunishmentSetName.trim()"
         >
@@ -87,7 +87,7 @@
         </div>
         
         <button 
-          @click="createCreatorPunishmentSet" 
+          @click="openCreateModal('creatorPunishment')" 
           class="btn btn-primary w-full"
           :disabled="!newCreatorPunishmentSetName.trim()"
         >
@@ -646,24 +646,10 @@ export default {
     }
     
     // Create operations
-    function createWordSet() {
-      if (!newWordSetName.value.trim()) return
-      
-      creatingType.value = 'word'
-      showCreateModal.value = true
-    }
-    
-    function createPlayerPunishmentSet() {
-      if (!newPlayerPunishmentSetName.value.trim()) return
-      
-      creatingType.value = 'playerPunishment'
-      showCreateModal.value = true
-    }
-    
-    function createCreatorPunishmentSet() {
-      if (!newCreatorPunishmentSetName.value.trim()) return
-      
-      creatingType.value = 'creatorPunishment'
+    function openCreateModal(type) {
+      creatingType.value = type
+      wordInput.value = ''
+      punishmentInput.value = ''
       showCreateModal.value = true
     }
     
@@ -887,9 +873,7 @@ export default {
       viewingName,
       
       // Methods
-      createWordSet,
-      createPlayerPunishmentSet,
-      createCreatorPunishmentSet,
+      openCreateModal,
       handleFileImport,
       saveSet,
       viewWordSet,
