@@ -28,6 +28,7 @@ export const useRoomStore = defineStore('room', () => {
     createRoom: roomCrud.createRoom,
     loadRoom: roomCrud.loadRoom,
     loadUserRooms: roomCrud.loadUserRooms,
+    loadActiveRooms: roomCrud.loadActiveRooms, // Added new function
     deleteRoom: roomCrud.deleteRoom,
     cleanup: roomCrud.cleanup,
     
