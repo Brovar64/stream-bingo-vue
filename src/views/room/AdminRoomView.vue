@@ -221,9 +221,43 @@
               Click on a word to mark it as called out for all players.
             </p>
             
+            <!-- Search and Sort Controls -->
+            <div class="flex flex-col sm:flex-row gap-3 mb-4">
+              <div class="flex-grow">
+                <input 
+                  type="text" 
+                  v-model="searchQuery" 
+                  class="form-control w-full"
+                  placeholder="Search words..."
+                />
+              </div>
+              <div class="flex gap-2">
+                <button 
+                  @click="sortBy = 'alphabetical'; sortOrder = sortOrder === 'asc' ? 'desc' : 'asc'" 
+                  class="btn bg-background-lighter hover:bg-gray-700 text-white text-sm py-1 px-2"
+                  :class="{ 'bg-primary': sortBy === 'alphabetical' }"
+                >
+                  Sort A-Z
+                  <span v-if="sortBy === 'alphabetical'">
+                    {{ sortOrder === 'asc' ? '↑' : '↓' }}
+                  </span>
+                </button>
+                <button 
+                  @click="sortBy = 'calledOut'; sortOrder = sortOrder === 'asc' ? 'desc' : 'asc'" 
+                  class="btn bg-background-lighter hover:bg-gray-700 text-white text-sm py-1 px-2"
+                  :class="{ 'bg-primary': sortBy === 'calledOut' }"
+                >
+                  Sort by Status
+                  <span v-if="sortBy === 'calledOut'">
+                    {{ sortOrder === 'asc' ? '↑' : '↓' }}
+                  </span>
+                </button>
+              </div>
+            </div>
+            
             <div class="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-5 gap-2 p-1">
               <div 
-                v-for="(word, index) in roomData.words" 
+                v-for="(word, index) in filteredAndSortedWords" 
                 :key="index"
                 :class="['bingo-word-card', {
                   'called-out': isWordCalledOut(word),
@@ -265,6 +299,7 @@
             
             <div class="flex justify-between text-sm text-gray-400 mt-4">
               <span>{{ calledOutWordsCount }} / {{ wordCount }} words called</span>
+              <span>Showing {{ filteredAndSortedWords.length }} of {{ wordCount }} words</span>
               <button 
                 @click="resetCalledWords" 
                 class="text-primary hover:text-primary-light"
@@ -355,6 +390,11 @@ export default {
     const multipleWords = ref('')
     const wordSets = ref([])
     
+    // Search and sort state
+    const searchQuery = ref('')
+    const sortBy = ref('alphabetical') // 'alphabetical' or 'calledOut'
+    const sortOrder = ref('asc') // 'asc' or 'desc'
+    
     // Computed properties
     const roomData = computed(() => roomStore.currentRoom)
     const isRoomSetup = computed(() => roomStore.isRoomSetup)
@@ -362,6 +402,45 @@ export default {
     const wordCount = computed(() => roomData.value?.words?.length || 0)
     const requiredWords = computed(() => roomStore.requiredWords)
     const calledOutWordsCount = computed(() => roomData.value?.calledOutWords?.length || 0)
+    
+    // Filtered and sorted words
+    const filteredAndSortedWords = computed(() => {
+      if (!roomData.value?.words) return []
+      
+      // First filter by search query
+      let result = [...roomData.value.words]
+      
+      if (searchQuery.value.trim()) {
+        const query = searchQuery.value.toLowerCase().trim()
+        result = result.filter(word => 
+          word.toLowerCase().includes(query)
+        )
+      }
+      
+      // Then sort
+      if (sortBy.value === 'alphabetical') {
+        result.sort((a, b) => {
+          return sortOrder.value === 'asc' 
+            ? a.localeCompare(b) 
+            : b.localeCompare(a)
+        })
+      } else if (sortBy.value === 'calledOut') {
+        result.sort((a, b) => {
+          const aCalledOut = isWordCalledOut(a)
+          const bCalledOut = isWordCalledOut(b)
+          
+          if (aCalledOut === bCalledOut) return 0
+          
+          if (sortOrder.value === 'asc') {
+            return aCalledOut ? -1 : 1
+          } else {
+            return aCalledOut ? 1 : -1
+          }
+        })
+      }
+      
+      return result
+    })
     
     const parsedWords = computed(() => {
       if (!multipleWords.value.trim()) return []
@@ -626,6 +705,10 @@ export default {
       wordCount,
       requiredWords,
       calledOutWordsCount,
+      searchQuery,
+      sortBy,
+      sortOrder,
+      filteredAndSortedWords,
       addWord,
       removeWord,
       startGame,
