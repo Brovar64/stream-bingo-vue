@@ -27,22 +27,73 @@
     <!-- Create Sets Tab - 3 Column Layout -->
     <div v-if="activeTab === 'create'" class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
       <!-- Classic Bingo Words Column -->
-      <CreateWordSetPanel 
-        v-model="newWordSetName"
-        @create="openCreateModal"
-      />
+      <div class="card p-4">
+        <h2 class="text-xl font-semibold mb-4">Classic Bingo Words</h2>
+        <div class="mb-4">
+          <label for="wordSetName" class="block text-sm text-gray-400 mb-1">Word Set Name</label>
+          <input 
+            type="text" 
+            id="wordSetName" 
+            v-model="newWordSetName" 
+            class="form-control w-full"
+            placeholder="e.g., Stream Catchphrases"
+          >
+        </div>
+        
+        <button 
+          @click="createWordSet" 
+          class="btn btn-primary w-full"
+          :disabled="!newWordSetName.trim()"
+        >
+          Create Word Set
+        </button>
+      </div>
       
       <!-- Player Punishments Column -->
-      <CreatePlayerPunishmentPanel
-        v-model="newPlayerPunishmentSetName"
-        @create="openCreateModal"
-      />
+      <div class="card p-4">
+        <h2 class="text-xl font-semibold mb-4">Player Punishments</h2>
+        <div class="mb-4">
+          <label for="playerPunishmentSetName" class="block text-sm text-gray-400 mb-1">Punishment Set Name</label>
+          <input 
+            type="text" 
+            id="playerPunishmentSetName" 
+            v-model="newPlayerPunishmentSetName" 
+            class="form-control w-full"
+            placeholder="e.g., Player Challenges"
+          >
+        </div>
+        
+        <button 
+          @click="createPlayerPunishmentSet" 
+          class="btn btn-primary w-full"
+          :disabled="!newPlayerPunishmentSetName.trim()"
+        >
+          Create Player Punishments
+        </button>
+      </div>
       
       <!-- Creator Punishments Column -->
-      <CreateCreatorPunishmentPanel
-        v-model="newCreatorPunishmentSetName"
-        @create="openCreateModal"
-      />
+      <div class="card p-4">
+        <h2 class="text-xl font-semibold mb-4">Creator Punishments</h2>
+        <div class="mb-4">
+          <label for="creatorPunishmentSetName" class="block text-sm text-gray-400 mb-1">Punishment Set Name</label>
+          <input 
+            type="text" 
+            id="creatorPunishmentSetName" 
+            v-model="newCreatorPunishmentSetName" 
+            class="form-control w-full"
+            placeholder="e.g., Streamer Challenges"
+          >
+        </div>
+        
+        <button 
+          @click="createCreatorPunishmentSet" 
+          class="btn btn-primary w-full"
+          :disabled="!newCreatorPunishmentSetName.trim()"
+        >
+          Create Creator Punishments
+        </button>
+      </div>
     </div>
     
     <!-- Manage Sets Tab -->
@@ -91,9 +142,6 @@ import { ref, computed, onMounted } from 'vue'
 import { useNotificationStore } from '@/stores/notification'
 
 // Import components
-import CreateWordSetPanel from '@/components/word-sets/CreateWordSetPanel.vue'
-import CreatePlayerPunishmentPanel from '@/components/word-sets/CreatePlayerPunishmentPanel.vue'
-import CreateCreatorPunishmentPanel from '@/components/word-sets/CreateCreatorPunishmentPanel.vue'
 import SetsManager from '@/components/word-sets/SetsManager.vue'
 import CreateSetModal from '@/components/word-sets/CreateSetModal.vue'
 import ViewEditModal from '@/components/word-sets/ViewEditModal.vue'
@@ -102,9 +150,6 @@ export default {
   name: 'WordSetsView',
   
   components: {
-    CreateWordSetPanel,
-    CreatePlayerPunishmentPanel,
-    CreateCreatorPunishmentPanel,
     SetsManager,
     CreateSetModal,
     ViewEditModal
@@ -247,10 +292,22 @@ export default {
       notificationStore.showNotification(message, 'error')
     }
     
-    // Create operations
-    function openCreateModal(type) {
-      alert('Opening create modal for: ' + type);
-      creatingType.value = type;
+    // Create operations - Direct button handlers
+    function createWordSet() {
+      if (!newWordSetName.value.trim()) return;
+      creatingType.value = 'word';
+      showCreateModal.value = true;
+    }
+    
+    function createPlayerPunishmentSet() {
+      if (!newPlayerPunishmentSetName.value.trim()) return;
+      creatingType.value = 'playerPunishment';
+      showCreateModal.value = true;
+    }
+    
+    function createCreatorPunishmentSet() {
+      if (!newCreatorPunishmentSetName.value.trim()) return;
+      creatingType.value = 'creatorPunishment';
       showCreateModal.value = true;
     }
     
@@ -444,8 +501,12 @@ export default {
       creatingName,
       viewingName,
       
+      // Methods - direct button actions
+      createWordSet,
+      createPlayerPunishmentSet,
+      createCreatorPunishmentSet,
+      
       // Methods
-      openCreateModal,
       handleSaveSet,
       handleFileError,
       viewWordSet,
