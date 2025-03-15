@@ -212,14 +212,14 @@
         
         <!-- Right Column: Bingo Words and Approvals -->
         <div class="lg:col-span-7">
-          <!-- Words List -->
+          <!-- Words List in Grid Layout -->
           <div class="card mb-6">
             <h2 class="text-xl font-semibold mb-4">Bingo Words</h2>
             <p class="text-sm text-gray-400 mb-4">
               Click on a word to mark it as called out for all players.
             </p>
             
-            <div class="space-y-2 max-h-[400px] overflow-y-auto">
+            <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 max-h-[400px] overflow-y-auto p-1">
               <div 
                 v-for="(word, index) in roomData.words" 
                 :key="index"
@@ -227,8 +227,8 @@
                         isWordCalledOut(word) ? 'bg-success bg-opacity-20 border border-success' : 'bg-background-lighter hover:bg-gray-700']"
                 @click="callOutWord(word)"
               >
-                <span class="flex-grow">{{ word }}</span>
-                <span v-if="isWordCalledOut(word)" class="text-success text-sm ml-2">✓ Called</span>
+                <span class="flex-grow truncate mr-1">{{ word }}</span>
+                <span v-if="isWordCalledOut(word)" class="text-success text-sm ml-auto flex-shrink-0">✓</span>
               </div>
             </div>
             
