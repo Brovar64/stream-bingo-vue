@@ -7,7 +7,7 @@
     
     <div class="flex justify-center mb-4">
       <div class="bingo-grid" :style="`grid-template-columns: repeat(${gridSize}, 1fr);`">
-        <template v-for="(word, index) in words.slice(0, gridSize * gridSize)" :key="index">
+        <template v-for="(word, index) in words" :key="index">
           <div 
             :class="['master-bingo-cell', calledOutWords.includes(word) ? 'called-out' : '']"
             @click="callOutWord(word)"
@@ -33,6 +33,9 @@
 </template>
 
 <script>
+import { useRoomStore } from '@/stores/room/'
+import { useNotificationStore } from '@/stores/notification'
+
 export default {
   name: 'MasterBingoGrid',
   props: {
@@ -55,37 +58,68 @@ export default {
       calledOutWords: []
     }
   },
+  setup() {
+    const roomStore = useRoomStore()
+    const notificationStore = useNotificationStore()
+    
+    return {
+      roomStore,
+      notificationStore
+    }
+  },
   mounted() {
-    // Load called out words from local storage if they exist
-    const storedCalledWords = localStorage.getItem(`room_${this.roomId}_calledWords`)
-    if (storedCalledWords) {
-      try {
-        this.calledOutWords = JSON.parse(storedCalledWords)
-      } catch (error) {
-        console.error('Failed to parse called out words:', error)
-        this.calledOutWords = []
+    // Load called out words from the room store or initialize from local storage
+    if (this.roomStore.currentRoom?.calledOutWords) {
+      this.calledOutWords = [...this.roomStore.currentRoom.calledOutWords]
+    } else {
+      // Fallback to local storage if not in store
+      const storedCalledWords = localStorage.getItem(`room_${this.roomId}_calledWords`)
+      if (storedCalledWords) {
+        try {
+          this.calledOutWords = JSON.parse(storedCalledWords)
+        } catch (error) {
+          console.error('Failed to parse called out words:', error)
+          this.calledOutWords = []
+        }
       }
     }
   },
   methods: {
-    callOutWord(word) {
-      // Toggle the word in the called out list
-      if (this.calledOutWords.includes(word)) {
-        this.calledOutWords = this.calledOutWords.filter(w => w !== word)
-      } else {
-        this.calledOutWords.push(word)
+    async callOutWord(word) {
+      try {
+        // Call the store method to mark word for all players
+        await this.roomStore.markWordForAllPlayers(word)
+        
+        // Update local state from room
+        if (this.roomStore.currentRoom?.calledOutWords) {
+          this.calledOutWords = [...this.roomStore.currentRoom.calledOutWords]
+        }
+        
+        // Emit event to parent
+        this.$emit('call-out-word', word)
+      } catch (error) {
+        console.error('Error calling out word:', error)
+        this.notificationStore.showNotification(`Error marking word: ${error.message}`, 'error')
       }
-      
-      // Save called words to local storage
-      localStorage.setItem(`room_${this.roomId}_calledWords`, JSON.stringify(this.calledOutWords))
-      
-      // Emit event to parent component
-      this.$emit('call-out-word', word)
     },
-    resetCalledWords() {
-      this.calledOutWords = []
-      localStorage.removeItem(`room_${this.roomId}_calledWords`)
-      this.$emit('reset-called-words')
+    
+    async resetCalledWords() {
+      try {
+        // Call the store method to reset called words
+        await this.roomStore.resetCalledOutWords()
+        
+        // Update local state
+        this.calledOutWords = []
+        
+        // Clear local storage
+        localStorage.removeItem(`room_${this.roomId}_calledWords`)
+        
+        // Emit event to parent
+        this.$emit('reset-called-words')
+      } catch (error) {
+        console.error('Error resetting called words:', error)
+        this.notificationStore.showNotification(`Error resetting called words: ${error.message}`, 'error')
+      }
     }
   }
 }
