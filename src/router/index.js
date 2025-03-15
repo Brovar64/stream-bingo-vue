@@ -11,6 +11,10 @@ const VueFirePlayerView = () => import('@/views/room/VueFirePlayerView.vue')
 const WordSetsView = () => import('@/views/WordSetsView.vue')
 const NotFoundView = () => import('@/views/NotFoundView.vue')
 
+// Punishment Mode Views
+const PunishmentRoomView = () => import('@/views/room/PunishmentRoomView.vue')
+const PunishmentPlayerView = () => import('@/views/room/PunishmentPlayerView.vue')
+
 // Routes configuration
 const routes = [
   {
@@ -57,6 +61,18 @@ const routes = [
     name: 'auth-callback',
     component: () => import('@/views/auth/AuthCallbackView.vue'),
     meta: { public: true }
+  },
+  // Punishment Mode Routes
+  {
+    path: '/punishment/:id',
+    name: 'punishment-room',
+    component: PunishmentRoomView,
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/punishment-play/:id',
+    name: 'punishment-player',
+    component: PunishmentPlayerView
   },
   {
     path: '/:pathMatch(.*)*',
