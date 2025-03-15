@@ -1,257 +1,186 @@
 <template>
   <div class="container py-8">
-    <h1 class="title mb-6">Manage Bingo Word Sets</h1>
-    <p class="subtitle mb-8">Create and manage reusable word sets for your bingo rooms</p>
+    <div class="flex justify-between items-center mb-6">
+      <h1 class="title">Manage Bingo Word & Punishment Sets</h1>
+      <router-link to="/dashboard" class="btn bg-background-lighter hover:bg-gray-700 text-white">
+        Back to Dashboard
+      </router-link>
+    </div>
+    <p class="subtitle mb-8">Create and manage reusable sets for your bingo rooms</p>
     
-    <!-- Word Sets List -->
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-      <div class="card p-4">
-        <h2 class="text-xl font-semibold mb-4">Create New Word Set</h2>
-        <div class="mb-4">
-          <label for="wordSetName" class="block text-sm text-gray-400 mb-1">Word Set Name</label>
-          <input 
-            type="text" 
-            id="wordSetName" 
-            v-model="newWordSetName" 
-            class="form-control w-full"
-            placeholder="e.g., Stream Catchphrases"
-          >
-        </div>
-        
-        <button 
-          @click="showCreateModal = true" 
-          class="btn btn-primary w-full"
-          :disabled="!newWordSetName.trim()"
-        >
-          Create New Word Set
-        </button>
-      </div>
-      
-      <div v-if="wordSets.length === 0" class="col-span-2 card p-6 flex flex-col items-center justify-center">
-        <div class="text-gray-400 mb-3">No word sets created yet</div>
-        <p class="text-sm text-gray-500">Create your first word set to get started!</p>
-      </div>
-      
-      <template v-else>
-        <div v-for="(wordSet, index) in wordSets" :key="index" class="card p-4">
-          <div class="flex justify-between items-start mb-4">
-            <h3 class="text-lg font-semibold">{{ wordSet.name }}</h3>
-            <div class="flex space-x-2">
-              <button 
-                @click="editWordSet(index)" 
-                class="text-primary hover:text-primary-light" 
-                title="Edit"
-              >
-                ✏️
-              </button>
-              <button 
-                @click="deleteWordSet(index)" 
-                class="text-error hover:text-red-400" 
-                title="Delete"
-              >
-                🗑️
-              </button>
-            </div>
-          </div>
-          
-          <div class="text-sm text-gray-400 mb-2">{{ wordSet.words.length }} words</div>
-          
-          <div class="max-h-32 overflow-y-auto bg-background-lighter p-2 rounded mb-3">
-            <div v-for="(word, wordIndex) in wordSet.words.slice(0, 5)" :key="wordIndex" class="text-sm mb-1">
-              {{ word }}
-            </div>
-            <div v-if="wordSet.words.length > 5" class="text-xs text-gray-500 italic">
-              And {{ wordSet.words.length - 5 }} more...
-            </div>
-          </div>
-          
-          <button 
-            @click="viewWordSet(index)" 
-            class="btn bg-background-lighter hover:bg-gray-700 text-white w-full"
-          >
-            View Details
-          </button>
-        </div>
-      </template>
+    <!-- Management Tabs -->
+    <div class="tab-container mb-6">
+      <button 
+        @click="activeTab = 'create'" 
+        :class="['tab-button', activeTab === 'create' ? 'active' : '']"
+      >
+        Create Sets
+      </button>
+      <button 
+        @click="activeTab = 'manage'" 
+        :class="['tab-button', activeTab === 'manage' ? 'active' : '']"
+      >
+        Manage Existing Sets
+      </button>
     </div>
     
-    <!-- Create Modal -->
-    <div v-if="showCreateModal" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
-      <div class="bg-background-card rounded-lg shadow-lg w-full max-w-3xl p-6 max-h-screen overflow-y-auto">
-        <div class="flex justify-between items-center mb-6">
-          <h2 class="text-2xl font-bold">Create Word Set: {{ newWordSetName }}</h2>
-          <button @click="showCreateModal = false" class="text-gray-400 hover:text-white text-xl">
-            ✕
-          </button>
-        </div>
-        
-        <div class="mb-6">
-          <label class="block text-sm text-gray-400 mb-2">Enter or Paste Words</label>
-          <p class="text-sm text-gray-500 mb-3">
-            Each word or phrase should be on a new line. Empty lines will be ignored.
-          </p>
-          <textarea 
-            v-model="wordInput" 
-            class="form-control w-full h-48 font-mono"
-            placeholder="Enter words here..."
-          ></textarea>
-        </div>
-        
-        <div class="flex justify-between items-center mb-6">
-          <div>
-            <label for="fileInput" class="btn bg-background-lighter hover:bg-gray-700 text-white cursor-pointer">
-              Import from TXT File
-            </label>
-            <input 
-              type="file" 
-              id="fileInput" 
-              accept=".txt" 
-              @change="handleFileImport" 
-              class="hidden"
-            >
-          </div>
-          
-          <div class="text-gray-400">
-            <span class="font-bold">{{ parsedWords.length }}</span> words
-          </div>
-        </div>
-        
-        <div class="flex justify-end space-x-3">
-          <button 
-            @click="showCreateModal = false" 
-            class="btn bg-background-lighter hover:bg-gray-700 text-white"
-          >
-            Cancel
-          </button>
-          <button 
-            @click="saveWordSet" 
-            class="btn btn-primary"
-            :disabled="parsedWords.length === 0"
-          >
-            Save Word Set
-          </button>
-        </div>
-      </div>
+    <!-- Create Sets Tab - 3 Column Layout -->
+    <div v-if="activeTab === 'create'" class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+      <!-- Classic Bingo Words Column -->
+      <CreateWordSetPanel 
+        v-model:value="newWordSetName"
+        @create="openCreateModal"
+      />
+      
+      <!-- Player Punishments Column -->
+      <CreatePlayerPunishmentPanel
+        v-model:value="newPlayerPunishmentSetName"
+        @create="openCreateModal"
+      />
+      
+      <!-- Creator Punishments Column -->
+      <CreateCreatorPunishmentPanel
+        v-model:value="newCreatorPunishmentSetName"
+        @create="openCreateModal"
+      />
     </div>
+    
+    <!-- Manage Sets Tab -->
+    <div v-if="activeTab === 'manage'" class="mb-8">
+      <SetsManager
+        :word-sets="wordSets"
+        :player-punishment-sets="playerPunishmentSets"
+        :creator-punishment-sets="creatorPunishmentSets"
+        :initial-tab="manageTab"
+        @update:active-tab="manageTab = $event"
+        @view-word-set="viewWordSet"
+        @edit-word-set="editWordSet"
+        @delete-word-set="deleteWordSet"
+        @view-punishment-set="viewPunishmentSet"
+        @edit-punishment-set="editPunishmentSet"
+        @delete-punishment-set="deletePunishmentSet"
+      />
+    </div>
+    
+    <!-- Create Set Modal -->
+    <CreateSetModal
+      v-model:visible="showCreateModal"
+      :type="creatingType"
+      :set-name="creatingName"
+      @save="handleSaveSet"
+      @cancel="closeCreateModal"
+      @file-error="handleFileError"
+    />
     
     <!-- View/Edit Modal -->
-    <div v-if="showViewModal" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
-      <div class="bg-background-card rounded-lg shadow-lg w-full max-w-3xl p-6 max-h-screen overflow-y-auto">
-        <div class="flex justify-between items-center mb-6">
-          <h2 class="text-2xl font-bold">Word Set: {{ editingWordSet.name }}</h2>
-          <button @click="showViewModal = false" class="text-gray-400 hover:text-white text-xl">
-            ✕
-          </button>
-        </div>
-        
-        <div v-if="isEditing" class="mb-6">
-          <label class="block text-sm text-gray-400 mb-2">Edit Words</label>
-          <textarea 
-            v-model="wordInput" 
-            class="form-control w-full h-48 font-mono"
-            placeholder="Enter words here..."
-          ></textarea>
-        </div>
-        
-        <div v-else class="mb-6">
-          <div class="flex justify-between items-center mb-3">
-            <label class="block text-sm text-gray-400">All Words ({{ editingWordSet.words.length }})</label>
-            <button 
-              @click="isEditing = true" 
-              class="text-primary hover:text-primary-light"
-            >
-              Edit Words
-            </button>
-          </div>
-          
-          <div class="bg-background-lighter p-3 rounded h-64 overflow-y-auto">
-            <div v-for="(word, index) in editingWordSet.words" :key="index" class="mb-1">
-              {{ word }}
-            </div>
-          </div>
-        </div>
-        
-        <div v-if="isEditing" class="flex justify-between items-center mb-6">
-          <div>
-            <label for="editFileInput" class="btn bg-background-lighter hover:bg-gray-700 text-white cursor-pointer">
-              Import from TXT File
-            </label>
-            <input 
-              type="file" 
-              id="editFileInput" 
-              accept=".txt" 
-              @change="handleFileImport" 
-              class="hidden"
-            >
-          </div>
-          
-          <div class="text-gray-400">
-            <span class="font-bold">{{ parsedWords.length }}</span> words
-          </div>
-        </div>
-        
-        <div class="flex justify-end space-x-3">
-          <button 
-            @click="showViewModal = false" 
-            class="btn bg-background-lighter hover:bg-gray-700 text-white"
-          >
-            {{ isEditing ? 'Cancel' : 'Close' }}
-          </button>
-          
-          <button 
-            v-if="isEditing"
-            @click="updateWordSet" 
-            class="btn btn-primary"
-            :disabled="parsedWords.length === 0"
-          >
-            Save Changes
-          </button>
-        </div>
-      </div>
-    </div>
+    <ViewEditModal
+      v-model:visible="showViewModal"
+      :type="viewingType"
+      :set-name="viewingName"
+      :set-words="viewingType === 'word' ? editingWordSet.words : []"
+      :set-punishments="viewingType !== 'word' ? editingPunishmentSet.entries : []"
+      @save="handleUpdateSet"
+      @cancel="closeViewModal"
+      @file-error="handleFileError"
+    />
   </div>
 </template>
 
 <script>
 import { ref, computed, onMounted } from 'vue'
-//import { useRouter } from 'vue-router'
 import { useNotificationStore } from '@/stores/notification'
+
+// Import components
+import CreateWordSetPanel from '@/components/word-sets/CreateWordSetPanel.vue'
+import CreatePlayerPunishmentPanel from '@/components/word-sets/CreatePlayerPunishmentPanel.vue'
+import CreateCreatorPunishmentPanel from '@/components/word-sets/CreateCreatorPunishmentPanel.vue'
+import SetsManager from '@/components/word-sets/SetsManager.vue'
+import CreateSetModal from '@/components/word-sets/CreateSetModal.vue'
+import ViewEditModal from '@/components/word-sets/ViewEditModal.vue'
 
 export default {
   name: 'WordSetsView',
+  
+  components: {
+    CreateWordSetPanel,
+    CreatePlayerPunishmentPanel,
+    CreateCreatorPunishmentPanel,
+    SetsManager,
+    CreateSetModal,
+    ViewEditModal
+  },
+  
   setup() {
-   // const router = useRouter()
     const notificationStore = useNotificationStore()
     
-    // State
+    // Tab Navigation State
+    const activeTab = ref('create')
+    const manageTab = ref('words')
+    
+    // Word Sets State
     const wordSets = ref([])
     const newWordSetName = ref('')
-    const wordInput = ref('')
+    
+    // Player Punishment Sets State
+    const playerPunishmentSets = ref([])
+    const newPlayerPunishmentSetName = ref('')
+    
+    // Creator Punishment Sets State
+    const creatorPunishmentSets = ref([])
+    const newCreatorPunishmentSetName = ref('')
+    
+    // Modal State
     const showCreateModal = ref(false)
     const showViewModal = ref(false)
+    
+    // Currently selected items
     const selectedWordSetIndex = ref(-1)
-    const isEditing = ref(false)
+    const selectedPlayerPunishmentSetIndex = ref(-1)
+    const selectedCreatorPunishmentSetIndex = ref(-1)
     
-    // Computed properties
-    const parsedWords = computed(() => {
-      if (!wordInput.value.trim()) return []
-      return wordInput.value
-        .split('\n')
-        .map(word => word.trim())
-        .filter(word => word.length > 0)
-    })
+    // Currently creating/viewing type
+    const creatingType = ref('word') // 'word', 'playerPunishment', 'creatorPunishment'
+    const viewingType = ref('word')
     
+    // Computed properties for currently editing items
     const editingWordSet = computed(() => {
       if (selectedWordSetIndex.value === -1) return { name: '', words: [] }
       return wordSets.value[selectedWordSetIndex.value] || { name: '', words: [] }
     })
     
-    // Lifecycle hooks
-    onMounted(() => {
-      loadWordSets()
+    const editingPunishmentSet = computed(() => {
+      if (viewingType.value === 'playerPunishment') {
+        if (selectedPlayerPunishmentSetIndex.value === -1) return { name: '', entries: [] }
+        return playerPunishmentSets.value[selectedPlayerPunishmentSetIndex.value] || { name: '', entries: [] }
+      } else {
+        if (selectedCreatorPunishmentSetIndex.value === -1) return { name: '', entries: [] }
+        return creatorPunishmentSets.value[selectedCreatorPunishmentSetIndex.value] || { name: '', entries: [] }
+      }
     })
     
-    // Methods
+    // Computed name based on what's being viewed or created
+    const creatingName = computed(() => {
+      if (creatingType.value === 'word') return newWordSetName.value
+      if (creatingType.value === 'playerPunishment') return newPlayerPunishmentSetName.value
+      return newCreatorPunishmentSetName.value
+    })
+    
+    const viewingName = computed(() => {
+      if (viewingType.value === 'word') return editingWordSet.value.name
+      return editingPunishmentSet.value.name
+    })
+    
+    // Lifecycle hooks
+    onMounted(() => {
+      loadSets()
+    })
+    
+    // Methods for data loading/saving
+    function loadSets() {
+      loadWordSets()
+      loadPunishmentSets()
+    }
+    
     function loadWordSets() {
       const storedSets = localStorage.getItem('bingoWordSets')
       if (storedSets) {
@@ -261,72 +190,205 @@ export default {
           console.error('Failed to parse word sets:', error)
           wordSets.value = []
         }
+      } else {
+        // Initialize with empty array if nothing found in localStorage
+        wordSets.value = []
+      }
+    }
+    
+    function loadPunishmentSets() {
+      // Load player punishment sets
+      const storedPlayerSets = localStorage.getItem('bingoPlayerPunishmentSets')
+      if (storedPlayerSets) {
+        try {
+          playerPunishmentSets.value = JSON.parse(storedPlayerSets)
+        } catch (error) {
+          console.error('Failed to parse player punishment sets:', error)
+          playerPunishmentSets.value = []
+        }
+      } else {
+        // Initialize with empty array
+        playerPunishmentSets.value = []
+      }
+      
+      // Load creator punishment sets
+      const storedCreatorSets = localStorage.getItem('bingoCreatorPunishmentSets')
+      if (storedCreatorSets) {
+        try {
+          creatorPunishmentSets.value = JSON.parse(storedCreatorSets)
+        } catch (error) {
+          console.error('Failed to parse creator punishment sets:', error)
+          creatorPunishmentSets.value = []
+        }
+      } else {
+        // Initialize with empty array
+        creatorPunishmentSets.value = []
       }
     }
     
     function saveWordSets() {
       localStorage.setItem('bingoWordSets', JSON.stringify(wordSets.value))
+      // Ensure updates are reflected in the dashboard
+      localStorage.setItem('bingoWordSetsUpdated', new Date().toISOString())
     }
     
-    function handleFileImport(event) {
-      const file = event.target.files[0]
-      if (!file) return
-      
-      const reader = new FileReader()
-      reader.onload = e => {
-        wordInput.value = e.target.result
-      }
-      reader.onerror = () => {
-        notificationStore.showNotification('Failed to read file', 'error')
-      }
-      reader.readAsText(file)
+    function savePlayerPunishmentSets() {
+      localStorage.setItem('bingoPlayerPunishmentSets', JSON.stringify(playerPunishmentSets.value))
+      localStorage.setItem('punishmentSetsUpdated', new Date().toISOString())
     }
     
-    function saveWordSet() {
-      if (!newWordSetName.value.trim() || parsedWords.value.length === 0) return
-      
-      wordSets.value.push({
-        name: newWordSetName.value.trim(),
-        words: [...parsedWords.value],
-        createdAt: new Date().toISOString()
-      })
-      
-      saveWordSets()
-      notificationStore.showNotification(`Word set "${newWordSetName.value}" created successfully`, 'success')
-      
-      // Reset form
-      newWordSetName.value = ''
-      wordInput.value = ''
+    function saveCreatorPunishmentSets() {
+      localStorage.setItem('bingoCreatorPunishmentSets', JSON.stringify(creatorPunishmentSets.value))
+      localStorage.setItem('punishmentSetsUpdated', new Date().toISOString())
+    }
+    
+    // Handle file error
+    function handleFileError(message) {
+      notificationStore.showNotification(message, 'error')
+    }
+    
+    // Create operations
+    function openCreateModal(type) {
+      creatingType.value = type
+      showCreateModal.value = true
+    }
+    
+    // Modal closing
+    function closeCreateModal() {
       showCreateModal.value = false
     }
     
-    function editWordSet(index) {
-      selectedWordSetIndex.value = index
-      isEditing.value = true
-      wordInput.value = wordSets.value[index].words.join('\n')
-      showViewModal.value = true
+    function closeViewModal() {
+      showViewModal.value = false
     }
     
+    // Save new set
+    function handleSaveSet(data) {
+      if (data.type === 'word') {
+        wordSets.value.push({
+          name: data.name.trim(),
+          words: [...data.content],
+          createdAt: new Date().toISOString()
+        })
+        
+        saveWordSets()
+        notificationStore.showNotification(`Word set "${data.name}" created successfully`, 'success')
+        
+        // Reset form
+        newWordSetName.value = ''
+      } 
+      else if (data.type === 'playerPunishment') {
+        playerPunishmentSets.value.push({
+          name: data.name.trim(),
+          entries: [...data.content],
+          createdAt: new Date().toISOString()
+        })
+        
+        savePlayerPunishmentSets()
+        notificationStore.showNotification(`Player punishment set "${data.name}" created successfully`, 'success')
+        
+        // Reset form
+        newPlayerPunishmentSetName.value = ''
+      }
+      else {
+        creatorPunishmentSets.value.push({
+          name: data.name.trim(),
+          entries: [...data.content],
+          createdAt: new Date().toISOString()
+        })
+        
+        saveCreatorPunishmentSets()
+        notificationStore.showNotification(`Creator punishment set "${data.name}" created successfully`, 'success')
+        
+        // Reset form
+        newCreatorPunishmentSetName.value = ''
+      }
+      
+      // Switch to manage tab to show the newly created set
+      activeTab.value = 'manage'
+      if (data.type === 'word') {
+        manageTab.value = 'words'
+      } else if (data.type === 'playerPunishment') {
+        manageTab.value = 'playerPunishments'
+      } else {
+        manageTab.value = 'creatorPunishments'
+      }
+    }
+    
+    // View operations
     function viewWordSet(index) {
       selectedWordSetIndex.value = index
-      isEditing.value = false
+      viewingType.value = 'word'
       showViewModal.value = true
     }
     
-    function updateWordSet() {
-      if (selectedWordSetIndex.value === -1 || parsedWords.value.length === 0) return
+    function viewPunishmentSet(data) {
+      if (data.type === 'player') {
+        selectedPlayerPunishmentSetIndex.value = data.index
+        selectedCreatorPunishmentSetIndex.value = -1
+        viewingType.value = 'playerPunishment'
+      } else {
+        selectedCreatorPunishmentSetIndex.value = data.index
+        selectedPlayerPunishmentSetIndex.value = -1
+        viewingType.value = 'creatorPunishment'
+      }
       
-      wordSets.value[selectedWordSetIndex.value].words = [...parsedWords.value]
-      wordSets.value[selectedWordSetIndex.value].updatedAt = new Date().toISOString()
-      
-      saveWordSets()
-      notificationStore.showNotification(`Word set "${editingWordSet.value.name}" updated successfully`, 'success')
-      
-      // Reset form
-      isEditing.value = false
-      wordInput.value = ''
+      showViewModal.value = true
     }
     
+    // Edit operations
+    function editWordSet(index) {
+      selectedWordSetIndex.value = index
+      viewingType.value = 'word'
+      showViewModal.value = true
+    }
+    
+    function editPunishmentSet(data) {
+      if (data.type === 'player') {
+        selectedPlayerPunishmentSetIndex.value = data.index
+        selectedCreatorPunishmentSetIndex.value = -1
+        viewingType.value = 'playerPunishment'
+      } else {
+        selectedCreatorPunishmentSetIndex.value = data.index
+        selectedPlayerPunishmentSetIndex.value = -1
+        viewingType.value = 'creatorPunishment'
+      }
+      
+      showViewModal.value = true
+    }
+    
+    // Update operations
+    function handleUpdateSet(data) {
+      if (data.type === 'word') {
+        if (selectedWordSetIndex.value === -1) return
+        
+        wordSets.value[selectedWordSetIndex.value].words = [...data.content]
+        wordSets.value[selectedWordSetIndex.value].updatedAt = new Date().toISOString()
+        
+        saveWordSets()
+        notificationStore.showNotification(`Word set "${editingWordSet.value.name}" updated successfully`, 'success')
+      } 
+      else if (data.type === 'playerPunishment') {
+        if (selectedPlayerPunishmentSetIndex.value === -1) return
+        
+        playerPunishmentSets.value[selectedPlayerPunishmentSetIndex.value].entries = [...data.content]
+        playerPunishmentSets.value[selectedPlayerPunishmentSetIndex.value].updatedAt = new Date().toISOString()
+        
+        savePlayerPunishmentSets()
+        notificationStore.showNotification(`Player punishment set "${editingPunishmentSet.value.name}" updated successfully`, 'success')
+      }
+      else {
+        if (selectedCreatorPunishmentSetIndex.value === -1) return
+        
+        creatorPunishmentSets.value[selectedCreatorPunishmentSetIndex.value].entries = [...data.content]
+        creatorPunishmentSets.value[selectedCreatorPunishmentSetIndex.value].updatedAt = new Date().toISOString()
+        
+        saveCreatorPunishmentSets()
+        notificationStore.showNotification(`Creator punishment set "${editingPunishmentSet.value.name}" updated successfully`, 'success')
+      }
+    }
+    
+    // Delete operations
     function deleteWordSet(index) {
       if (confirm(`Are you sure you want to delete the word set "${wordSets.value[index].name}"?`)) {
         const name = wordSets.value[index].name
@@ -336,22 +398,79 @@ export default {
       }
     }
     
+    function deletePunishmentSet(data) {
+      if (data.type === 'player') {
+        if (confirm(`Are you sure you want to delete the player punishment set "${playerPunishmentSets.value[data.index].name}"?`)) {
+          const name = playerPunishmentSets.value[data.index].name
+          playerPunishmentSets.value.splice(data.index, 1)
+          savePlayerPunishmentSets()
+          notificationStore.showNotification(`Player punishment set "${name}" deleted`, 'success')
+        }
+      } else {
+        if (confirm(`Are you sure you want to delete the creator punishment set "${creatorPunishmentSets.value[data.index].name}"?`)) {
+          const name = creatorPunishmentSets.value[data.index].name
+          creatorPunishmentSets.value.splice(data.index, 1)
+          saveCreatorPunishmentSets()
+          notificationStore.showNotification(`Creator punishment set "${name}" deleted`, 'success')
+        }
+      }
+    }
+    
     return {
+      // Tab navigation
+      activeTab,
+      manageTab,
+      
+      // Word Sets
       wordSets,
       newWordSetName,
-      wordInput,
+      
+      // Punishment Sets
+      playerPunishmentSets,
+      creatorPunishmentSets,
+      newPlayerPunishmentSetName,
+      newCreatorPunishmentSetName,
+      
+      // Modal state
       showCreateModal,
       showViewModal,
-      isEditing,
-      parsedWords,
+      
+      // Computed
       editingWordSet,
-      saveWordSet,
-      editWordSet,
+      editingPunishmentSet,
+      creatingType,
+      viewingType,
+      creatingName,
+      viewingName,
+      
+      // Methods
+      openCreateModal,
+      handleSaveSet,
+      handleFileError,
       viewWordSet,
-      updateWordSet,
+      viewPunishmentSet,
+      editWordSet,
+      editPunishmentSet,
+      handleUpdateSet,
       deleteWordSet,
-      handleFileImport
+      deletePunishmentSet,
+      closeCreateModal,
+      closeViewModal
     }
   }
 }
 </script>
+
+<style scoped>
+.tab-container {
+  @apply flex space-x-2;
+}
+
+.tab-button {
+  @apply px-4 py-2 rounded-lg bg-background-lighter hover:bg-gray-700 transition-colors;
+}
+
+.tab-button.active {
+  @apply bg-primary text-white;
+}
+</style>

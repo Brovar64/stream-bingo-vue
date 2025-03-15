@@ -11,6 +11,10 @@ const VueFirePlayerView = () => import('@/views/room/VueFirePlayerView.vue')
 const WordSetsView = () => import('@/views/WordSetsView.vue')
 const NotFoundView = () => import('@/views/NotFoundView.vue')
 
+// Punishment Game Mode Views
+const PunishmentRoomView = () => import('@/views/room/PunishmentRoomView.vue')
+const PunishmentPlayerView = () => import('@/views/room/PunishmentPlayerView.vue')
+
 // Routes configuration
 const routes = [
   {
@@ -51,6 +55,17 @@ const routes = [
     name: 'word-sets',
     component: WordSetsView,
     meta: { requiresAuth: true }
+  },
+  {
+    path: '/punishment/:id',
+    name: 'punishment-room',
+    component: PunishmentRoomView,
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/punishment-play/:id',
+    name: 'punishment-player-room',
+    component: PunishmentPlayerView
   },
   {
     path: '/auth-callback',

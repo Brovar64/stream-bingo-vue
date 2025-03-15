@@ -6,6 +6,7 @@ import {
 import { useDocument, useCollection } from 'vuefire';
 import { db } from '@/firebase';
 import { useNotificationStore } from '@/stores/notification';
+import { generateBingoGrid } from '@/utils/gridUtils';
 import { computed, ref } from 'vue';
 
 export const useVueFireRoomStore = defineStore('vuefireRoom', () => {
@@ -53,7 +54,7 @@ export const useVueFireRoomStore = defineStore('vuefireRoom', () => {
   /**
    * Creates a new room with the specified parameters
    */
-  async function createRoom(roomCode, gridSize = 5, initialWords = []) {
+  async function createRoom(roomCode, gridSize = 3, initialWords = []) {
     loading.value = true;
     
     try {
@@ -67,7 +68,7 @@ export const useVueFireRoomStore = defineStore('vuefireRoom', () => {
       
       // Validate grid size
       if (![3, 4, 5].includes(gridSize)) {
-        gridSize = 5; // Default to 5x5 if invalid
+        gridSize = 3; // Default to 3x3 if invalid
       }
       
       // Create new room data
@@ -102,7 +103,7 @@ export const useVueFireRoomStore = defineStore('vuefireRoom', () => {
   }
   
   /**
-   * Helper to generate a player grid
+   * Helper to generate a player grid - uses the centralized utility function
    */
   function generatePlayerGrid(nickname, roomData) {
     if (!roomData || !roomData.words || roomData.words.length === 0) {
@@ -110,41 +111,9 @@ export const useVueFireRoomStore = defineStore('vuefireRoom', () => {
       return null;
     }
     
-    const gridSize = roomData.gridSize || 5;
-    const totalCells = gridSize * gridSize;
-    
-    // Check if we have enough words
-    if (roomData.words.length < totalCells) {
-      console.error(`Not enough words (${roomData.words.length}) for grid size ${gridSize}x${gridSize}`);
-      return null;
-    }
-    
-    // Shuffle words for randomness
-    const shuffledWords = [...roomData.words].sort(() => Math.random() - 0.5);
-    
-    // Generate grid
-    const grid = {};
-    for (let row = 0; row < gridSize; row++) {
-      for (let col = 0; col < gridSize; col++) {
-        const index = row * gridSize + col;
-        const cellKey = `${row}_${col}`;
-        
-        // For standard bingo with odd grid size, make center a free space
-        const isCenterCell = gridSize % 2 === 1 && 
-                           row === Math.floor(gridSize / 2) && 
-                           col === Math.floor(gridSize / 2);
-        
-        grid[cellKey] = {
-          word: isCenterCell ? 'FREE' : shuffledWords[index],
-          row: row,
-          col: col,
-          marked: isCenterCell, // Center cell is pre-marked
-          approved: isCenterCell // Center cell is pre-approved
-        };
-      }
-    }
-    
-    return grid;
+    const gridSize = roomData.gridSize || 3;
+    // Use the centralized grid generation utility - this ensures NO "FREE" cell
+    return generateBingoGrid(roomData.words, gridSize);
   }
   
   /**
@@ -225,7 +194,7 @@ export const useVueFireRoomStore = defineStore('vuefireRoom', () => {
         if (!hasGrid) {
           console.log(`VueFire: Generating new grid for player ${nickname}`);
           
-          // Generate a grid for this player
+          // Generate a grid for this player - using the utility function to ensure NO FREE cell
           const playerGrid = generatePlayerGrid(nickname, roomData.value);
           
           if (playerGrid) {

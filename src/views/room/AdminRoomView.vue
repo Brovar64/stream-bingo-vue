@@ -136,20 +136,21 @@
             </div>
           </form>
           
+          <!-- Word list in 3 columns -->
           <div class="word-list">
             <div v-if="wordCount === 0" class="text-center text-gray-400 py-4">
               No words added yet.
             </div>
-            <div v-else class="space-y-2">
+            <div v-else class="grid grid-cols-1 md:grid-cols-3 gap-2">
               <div 
                 v-for="(word, index) in roomData.words" 
                 :key="index"
                 class="flex justify-between items-center bg-background-lighter p-2 rounded"
               >
-                <span>{{ word }}</span>
+                <span class="overflow-hidden text-ellipsis">{{ word }}</span>
                 <button 
                   @click="removeWord(index)" 
-                  class="text-error hover:text-red-300 transition-colors"
+                  class="text-error hover:text-red-300 transition-colors ml-2 flex-shrink-0"
                   title="Remove word"
                 >
                   ✕
@@ -162,78 +163,143 @@
       
       <!-- Active Game Content - Two Column Layout -->
       <div v-if="isRoomActive" class="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        <!-- Left Column: Players -->
-        <div class="lg:col-span-5">
+        <!-- Left Column: Players - Changed to 1/4 of the screen -->
+        <div class="lg:col-span-3">
           <div class="card">
             <h2 class="text-xl font-semibold mb-4">Players</h2>
             <div v-if="!roomData.players || roomData.players.length === 0" class="text-center py-4 text-gray-400">
               No players have joined yet.
             </div>
-            <div v-else class="space-y-2 max-h-[500px] overflow-y-auto">
+            <div v-else class="space-y-2">
               <div 
                 v-for="(player, index) in roomData.players" 
                 :key="index"
-                :class="['flex justify-between items-center p-3 rounded cursor-pointer', 
-                         selectedPlayer === player.nickname ? 'bg-primary bg-opacity-20' : 'bg-background-lighter',
-                         isPlayerWinner(player.nickname) ? 'border-2 border-yellow-400' : '']"
-                @click="viewPlayerGrid(player.nickname)"
+                :class="['player-item', 
+                         isPlayerSelected(player.nickname) ? 'selected' : '',
+                         isPlayerWinner(player.nickname) ? 'winner' : '']"
               >
-                <div>
-                  <div class="flex items-center">
-                    <span class="font-medium">{{ player.nickname }}</span>
-                    <span v-if="isPlayerWinner(player.nickname)" class="ml-2 text-yellow-400">🏆 BINGO!</span>
+                <div class="player-header" @click="togglePlayerGrid(player.nickname)">
+                  <div>
+                    <div class="flex items-center">
+                      <span class="font-medium">{{ player.nickname }}</span>
+                      <span v-if="isPlayerWinner(player.nickname)" class="ml-2 text-yellow-400">🏆 BINGO!</span>
+                    </div>
+                    <div class="text-xs text-gray-400 mt-1">
+                      <span v-if="getPlayerStats(player.nickname)">
+                        {{ getPlayerStats(player.nickname).approved }} / {{ roomData.gridSize * roomData.gridSize }} words marked
+                      </span>
+                      <span v-else>Joined: {{ formatTime(player.joinedAt) }}</span>
+                    </div>
                   </div>
-                  <div class="text-xs text-gray-400 mt-1">
-                    <span v-if="getPlayerStats(player.nickname)">
-                      {{ getPlayerStats(player.nickname).approved }} / {{ roomData.gridSize * roomData.gridSize }} words marked
-                    </span>
-                    <span v-else>Joined: {{ formatTime(player.joinedAt) }}</span>
+                  <div class="player-expand-icon">
+                    {{ isPlayerSelected(player.nickname) ? '▼' : '▶' }}
                   </div>
                 </div>
-                <div 
-                  class="text-primary hover:text-primary-light"
-                >
-                  View →
-                </div>
+                
+                <!-- Inline Player Grid -->
+                <PlayerGridView
+                  v-if="isPlayerSelected(player.nickname) && roomData.playerGrids && roomData.playerGrids[player.nickname]"
+                  :playerName="player.nickname"
+                  :gridSize="roomData.gridSize"
+                  :playerGrid="roomData.playerGrids[player.nickname]"
+                  :isWinner="isPlayerWinner(player.nickname)"
+                  :compact="true"
+                  @close="selectedPlayer = null"
+                  class="player-grid-view"
+                />
               </div>
             </div>
           </div>
-          
-          <!-- Player Grid View (when player is selected) -->
-          <PlayerGridView
-            v-if="selectedPlayer && roomData.playerGrids && roomData.playerGrids[selectedPlayer]"
-            :playerName="selectedPlayer"
-            :gridSize="roomData.gridSize"
-            :playerGrid="roomData.playerGrids[selectedPlayer]"
-            @close="selectedPlayer = null"
-            class="mt-6"
-          />
         </div>
         
-        <!-- Right Column: Bingo Words and Approvals -->
-        <div class="lg:col-span-7">
-          <!-- Words List in Grid Layout -->
+        <!-- Right Column: Bingo Words and Approvals - Increased to fill remaining space -->
+        <div class="lg:col-span-9">
+          <!-- Words List in Grid Layout - Changed to 5 columns -->
           <div class="card mb-6">
             <h2 class="text-xl font-semibold mb-4">Bingo Words</h2>
             <p class="text-sm text-gray-400 mb-4">
               Click on a word to mark it as called out for all players.
             </p>
             
-            <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 max-h-[400px] overflow-y-auto p-1">
+            <!-- Search and Sort Controls -->
+            <div class="flex flex-col sm:flex-row gap-3 mb-4">
+              <div class="flex-grow">
+                <input 
+                  type="text" 
+                  v-model="searchQuery" 
+                  class="form-control w-full"
+                  placeholder="Search words..."
+                />
+              </div>
+              <div class="flex gap-2">
+                <button 
+                  @click="sortBy = 'alphabetical'; sortOrder = sortOrder === 'asc' ? 'desc' : 'asc'" 
+                  class="btn bg-background-lighter hover:bg-gray-700 text-white text-sm py-1 px-2"
+                  :class="{ 'bg-primary': sortBy === 'alphabetical' }"
+                >
+                  Sort A-Z
+                  <span v-if="sortBy === 'alphabetical'">
+                    {{ sortOrder === 'asc' ? '↑' : '↓' }}
+                  </span>
+                </button>
+                <button 
+                  @click="sortBy = 'calledOut'; sortOrder = sortOrder === 'asc' ? 'desc' : 'asc'" 
+                  class="btn bg-background-lighter hover:bg-gray-700 text-white text-sm py-1 px-2"
+                  :class="{ 'bg-primary': sortBy === 'calledOut' }"
+                >
+                  Sort by Status
+                  <span v-if="sortBy === 'calledOut'">
+                    {{ sortOrder === 'asc' ? '↑' : '↓' }}
+                  </span>
+                </button>
+              </div>
+            </div>
+            
+            <div class="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-5 gap-2 p-1">
               <div 
-                v-for="(word, index) in roomData.words" 
+                v-for="(word, index) in filteredAndSortedWords" 
                 :key="index"
-                :class="['flex items-center p-3 rounded cursor-pointer transition-colors', 
-                        isWordCalledOut(word) ? 'bg-success bg-opacity-20 border border-success' : 'bg-background-lighter hover:bg-gray-700']"
+                :class="['bingo-word-card', {
+                  'called-out': isWordCalledOut(word),
+                  'has-approvals': hasPendingApprovals(word)
+                }]"
                 @click="callOutWord(word)"
               >
-                <span class="flex-grow truncate mr-1">{{ word }}</span>
-                <span v-if="isWordCalledOut(word)" class="text-success text-sm ml-auto flex-shrink-0">✓</span>
+                <div class="bingo-word-content">{{ word }}</div>
+                
+                <div class="bingo-word-status">
+                  <span v-if="isWordCalledOut(word)" class="called-out-icon">✓</span>
+                </div>
+                
+                <!-- Approval indicators -->
+                <div v-if="hasPendingApprovals(word)" class="approval-indicators">
+                  <div 
+                    v-for="(approval, approvalIndex) in getApprovalsForWord(word)" 
+                    :key="approvalIndex"
+                    class="approval-badge"
+                    :title="`${approval.playerName} marked this word`"
+                  >
+                    {{ getInitial(approval.playerName) }}
+                    <div class="approval-actions">
+                      <button 
+                        @click.stop="approvePlayerMark(getApprovalIndex(approval))"
+                        class="approve-btn"
+                        title="Approve"
+                      >✓</button>
+                      <button 
+                        @click.stop="rejectPlayerMark(getApprovalIndex(approval))"
+                        class="reject-btn"
+                        title="Reject"
+                      >✕</button>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
             
             <div class="flex justify-between text-sm text-gray-400 mt-4">
               <span>{{ calledOutWordsCount }} / {{ wordCount }} words called</span>
+              <span>Showing {{ filteredAndSortedWords.length }} of {{ wordCount }} words</span>
               <button 
                 @click="resetCalledWords" 
                 class="text-primary hover:text-primary-light"
@@ -242,15 +308,6 @@
               </button>
             </div>
           </div>
-          
-          <!-- Approvals List -->
-          <ApprovalsList
-            v-if="roomData.pendingApprovals && roomData.pendingApprovals.length > 0"
-            :approvals="roomData.pendingApprovals"
-            @approve="approvePlayerMark"
-            @reject="rejectPlayerMark"
-            class="mb-6"
-          />
           
           <!-- Bingo Winners List -->
           <div v-if="roomData.bingoWinners && roomData.bingoWinners.length > 0" class="card mb-6">
@@ -266,10 +323,10 @@
                   <span class="font-medium">{{ winner }}</span>
                 </div>
                 <button 
-                  @click="viewPlayerGrid(winner)"
+                  @click="togglePlayerGrid(winner)"
                   class="btn bg-primary hover:bg-primary-dark text-white text-sm py-1 px-2"
                 >
-                  View Grid
+                  {{ isPlayerSelected(winner) ? 'Hide Grid' : 'View Grid' }}
                 </button>
               </div>
             </div>
@@ -305,7 +362,6 @@ import { useRoute, useRouter } from 'vue-router'
 import { useRoomStore } from '@/stores/room/'
 import { useNotificationStore } from '@/stores/notification'
 import PlayerGridView from '@/components/bingo/PlayerGridView.vue'
-import ApprovalsList from '@/components/bingo/ApprovalsList.vue'
 import WordSetImporter from '@/components/bingo/WordSetImporter.vue'
 import MultiWordsPaste from '@/components/bingo/MultiWordsPaste.vue'
 
@@ -313,7 +369,6 @@ export default {
   name: 'AdminRoomView',
   components: {
     PlayerGridView,
-    ApprovalsList,
     WordSetImporter,
     MultiWordsPaste
   },
@@ -335,6 +390,11 @@ export default {
     const multipleWords = ref('')
     const wordSets = ref([])
     
+    // Search and sort state
+    const searchQuery = ref('')
+    const sortBy = ref('alphabetical') // 'alphabetical' or 'calledOut'
+    const sortOrder = ref('asc') // 'asc' or 'desc'
+    
     // Computed properties
     const roomData = computed(() => roomStore.currentRoom)
     const isRoomSetup = computed(() => roomStore.isRoomSetup)
@@ -342,6 +402,45 @@ export default {
     const wordCount = computed(() => roomData.value?.words?.length || 0)
     const requiredWords = computed(() => roomStore.requiredWords)
     const calledOutWordsCount = computed(() => roomData.value?.calledOutWords?.length || 0)
+    
+    // Filtered and sorted words
+    const filteredAndSortedWords = computed(() => {
+      if (!roomData.value?.words) return []
+      
+      // First filter by search query
+      let result = [...roomData.value.words]
+      
+      if (searchQuery.value.trim()) {
+        const query = searchQuery.value.toLowerCase().trim()
+        result = result.filter(word => 
+          word.toLowerCase().includes(query)
+        )
+      }
+      
+      // Then sort
+      if (sortBy.value === 'alphabetical') {
+        result.sort((a, b) => {
+          return sortOrder.value === 'asc' 
+            ? a.localeCompare(b) 
+            : b.localeCompare(a)
+        })
+      } else if (sortBy.value === 'calledOut') {
+        result.sort((a, b) => {
+          const aCalledOut = isWordCalledOut(a)
+          const bCalledOut = isWordCalledOut(b)
+          
+          if (aCalledOut === bCalledOut) return 0
+          
+          if (sortOrder.value === 'asc') {
+            return aCalledOut ? -1 : 1
+          } else {
+            return aCalledOut ? 1 : -1
+          }
+        })
+      }
+      
+      return result
+    })
     
     const parsedWords = computed(() => {
       if (!multipleWords.value.trim()) return []
@@ -475,6 +574,42 @@ export default {
       return date.toLocaleTimeString()
     }
     
+    // Check if a player is selected (for toggling grid display)
+    function isPlayerSelected(playerName) {
+      return selectedPlayer.value === playerName
+    }
+    
+    // Toggle player grid display
+    function togglePlayerGrid(playerName) {
+      selectedPlayer.value = selectedPlayer.value === playerName ? null : playerName
+    }
+    
+    // Get first letter of player name for the badge
+    function getInitial(playerName) {
+      return playerName ? playerName.charAt(0).toUpperCase() : '?'
+    }
+    
+    // Check if a word has pending approvals
+    function hasPendingApprovals(word) {
+      return getApprovalsForWord(word).length > 0
+    }
+    
+    // Get all pending approvals for a specific word
+    function getApprovalsForWord(word) {
+      if (!roomData.value?.pendingApprovals) return []
+      return roomData.value.pendingApprovals.filter(approval => approval.word === word)
+    }
+    
+    // Get the index of an approval in the pendingApprovals array
+    function getApprovalIndex(approval) {
+      if (!roomData.value?.pendingApprovals) return -1
+      return roomData.value.pendingApprovals.findIndex(a => 
+        a.playerName === approval.playerName && 
+        a.word === approval.word && 
+        a.row === approval.row && 
+        a.col === approval.col)
+    }
+    
     // Cleanup on component unmount
     onUnmounted(() => {
       roomStore.cleanup()
@@ -570,6 +705,10 @@ export default {
       wordCount,
       requiredWords,
       calledOutWordsCount,
+      searchQuery,
+      sortBy,
+      sortOrder,
+      filteredAndSortedWords,
       addWord,
       removeWord,
       startGame,
@@ -587,7 +726,13 @@ export default {
       isWordCalledOut,
       isPlayerWinner,
       getPlayerStats,
-      formatTime
+      formatTime,
+      isPlayerSelected,
+      togglePlayerGrid,
+      getInitial,
+      hasPendingApprovals,
+      getApprovalsForWord,
+      getApprovalIndex
     }
   }
 }
@@ -610,5 +755,88 @@ export default {
   background-color: #FF4081;
   border-radius: 4px;
   transition: width 0.3s ease;
+}
+
+/* Player list styling */
+.player-item {
+  @apply bg-background-lighter rounded-lg mb-2 overflow-hidden transition-all duration-200;
+}
+
+.player-item.selected {
+  @apply bg-primary bg-opacity-20;
+}
+
+.player-item.winner {
+  @apply border-2 border-yellow-400;
+}
+
+.player-header {
+  @apply flex justify-between items-center p-3 cursor-pointer;
+}
+
+.player-expand-icon {
+  @apply text-primary transition-transform duration-200;
+}
+
+.player-grid-view {
+  @apply border-t border-gray-700 pt-2;
+}
+
+/* Bingo word card styling */
+.bingo-word-card {
+  @apply relative bg-background-lighter p-3 rounded flex flex-col min-h-[80px] transition-colors;
+  display: flex;
+  align-items: flex-start;
+}
+
+.bingo-word-card.called-out {
+  @apply bg-success bg-opacity-20 border border-success;
+}
+
+.bingo-word-card.has-approvals {
+  @apply bg-warning bg-opacity-10 border border-warning;
+}
+
+.bingo-word-content {
+  @apply break-words overflow-hidden w-full text-sm;
+  word-break: break-word;
+  max-height: 100%;
+}
+
+.bingo-word-status {
+  @apply absolute top-2 right-2;
+}
+
+.called-out-icon {
+  @apply text-success font-bold;
+}
+
+/* Approval indicators */
+.approval-indicators {
+  @apply flex flex-wrap gap-1 mt-2 w-full;
+}
+
+.approval-badge {
+  @apply flex items-center justify-center bg-warning text-black w-6 h-6 rounded-full text-xs font-bold relative;
+}
+
+.approval-badge:hover .approval-actions {
+  @apply flex;
+}
+
+.approval-actions {
+  @apply hidden absolute -top-7 left-0 bg-background-card rounded-lg shadow-lg p-1 border border-gray-600 z-10;
+}
+
+.approve-btn, .reject-btn {
+  @apply w-6 h-6 rounded-full flex items-center justify-center text-xs;
+}
+
+.approve-btn {
+  @apply bg-success text-white mr-1;
+}
+
+.reject-btn {
+  @apply bg-error text-white;
 }
 </style>
