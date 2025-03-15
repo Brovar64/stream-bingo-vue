@@ -229,6 +229,7 @@
       :wordSets="wordSets"
       @close="showImportModal = false"
       @import="importWordSet"
+      @error="handleImportError"
     />
     
     <!-- Multi Words Paste Modal -->
@@ -343,9 +344,14 @@ export default {
       reader.readAsText(file)
     }
     
+    // Handle import errors
+    function handleImportError(message) {
+      notificationStore.showNotification(message, 'error')
+    }
+    
     // Import words from a saved word set
     async function importWordSet(wordSetId) {
-      if (wordSetId === null) return
+      if (wordSetId === null || wordSetId === undefined) return
       
       const wordSet = wordSets.value[wordSetId]
       if (!wordSet || !wordSet.words || wordSet.words.length === 0) {
@@ -493,6 +499,7 @@ export default {
       copyRoomCode,
       handleFileImport,
       importWordSet,
+      handleImportError,
       addMultipleWords,
       callOutWord,
       resetCalledWords
