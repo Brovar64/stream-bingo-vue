@@ -136,20 +136,21 @@
             </div>
           </form>
           
+          <!-- Word list in 3 columns -->
           <div class="word-list">
             <div v-if="wordCount === 0" class="text-center text-gray-400 py-4">
               No words added yet.
             </div>
-            <div v-else class="space-y-2">
+            <div v-else class="grid grid-cols-1 md:grid-cols-3 gap-2">
               <div 
                 v-for="(word, index) in roomData.words" 
                 :key="index"
                 class="flex justify-between items-center bg-background-lighter p-2 rounded"
               >
-                <span>{{ word }}</span>
+                <span class="overflow-hidden text-ellipsis">{{ word }}</span>
                 <button 
                   @click="removeWord(index)" 
-                  class="text-error hover:text-red-300 transition-colors"
+                  class="text-error hover:text-red-300 transition-colors ml-2 flex-shrink-0"
                   title="Remove word"
                 >
                   ✕
