@@ -28,19 +28,19 @@
     <div v-if="activeTab === 'create'" class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
       <!-- Classic Bingo Words Column -->
       <CreateWordSetPanel 
-        v-model:value="newWordSetName"
+        v-model="newWordSetName"
         @create="openCreateModal"
       />
       
       <!-- Player Punishments Column -->
       <CreatePlayerPunishmentPanel
-        v-model:value="newPlayerPunishmentSetName"
+        v-model="newPlayerPunishmentSetName"
         @create="openCreateModal"
       />
       
       <!-- Creator Punishments Column -->
       <CreateCreatorPunishmentPanel
-        v-model:value="newCreatorPunishmentSetName"
+        v-model="newCreatorPunishmentSetName"
         @create="openCreateModal"
       />
     </div>
