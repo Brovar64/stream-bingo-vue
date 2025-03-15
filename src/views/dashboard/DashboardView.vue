@@ -43,6 +43,7 @@
                 placeholder="Enter 4-6 character code"
                 maxlength="6"
                 required
+                autocomplete="off"
               >
               <button 
                 type="button"
@@ -92,7 +93,7 @@
         <h2 class="text-xl font-semibold mb-4">Join Existing Room</h2>
         <form @submit.prevent="joinRoom" class="space-y-4">
           <div class="form-group">
-            <label for="nickname">Your Nickname</label>
+            <label for="nickname">Player Nickname</label>
             <input 
               type="text" 
               id="nickname" 
@@ -100,9 +101,10 @@
               class="form-control"
               placeholder="Enter your nickname"
               required
+              autocomplete="off"
             >
-            <p v-if="isTestUser" class="text-xs text-gray-400 mt-1">
-              Default nickname is the username you're logged in with
+            <p class="text-xs text-gray-400 mt-1">
+              This is the name that will be displayed in the game
             </p>
           </div>
           
@@ -116,15 +118,16 @@
               placeholder="Enter room code"
               maxlength="6"
               required
+              autocomplete="off"
             >
           </div>
           
           <button 
             type="submit" 
             class="btn btn-primary w-full"
-            :disabled="loading"
+            :disabled="joinLoading"
           >
-            {{ loading ? 'Joining...' : 'Join Room' }}
+            {{ joinLoading ? 'Joining...' : 'Join Room' }}
           </button>
         </form>
       </div>
@@ -228,7 +231,7 @@
 </template>
 
 <script>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useRoomStore } from '@/stores/room'
@@ -244,6 +247,7 @@ export default {
     
     // State
     const loading = ref(false)
+    const joinLoading = ref(false)
     const newRoom = ref({
       code: '',
       gridSize: 5,
@@ -263,12 +267,21 @@ export default {
       return authStore.user?.authMethod === 'test'
     })
     
+    // Watch for changes to username and update nickname field
+    watch(username, (newUsername) => {
+      if (newUsername && !joinRoomData.value.nickname) {
+        joinRoomData.value.nickname = newUsername
+      }
+    })
+    
     // Load user's rooms on component mount
     onMounted(async () => {
       loading.value = true
       
-      // Set default nickname to current username
-      joinRoomData.value.nickname = authStore.username
+      // Set default nickname to current username if available
+      if (authStore.username) {
+        joinRoomData.value.nickname = authStore.username
+      }
       
       // Load user's rooms
       userRooms.value = await roomStore.loadUserRooms()
@@ -335,6 +348,9 @@ export default {
         )
         
         if (roomId) {
+          // Store created room ID for quick access later
+          sessionStorage.setItem('lastCreatedRoomId', roomId)
+          
           // Navigate to the admin room page
           router.push(`/admin/room/${roomId}`)
         }
@@ -348,9 +364,18 @@ export default {
     
     // Join an existing room
     async function joinRoom() {
-      loading.value = true
+      joinLoading.value = true
       
       try {
+        // Uppercase the room code
+        joinRoomData.value.code = joinRoomData.value.code.toUpperCase()
+        
+        // Save the nickname for later use
+        if (joinRoomData.value.nickname) {
+          // Save for this specific room
+          sessionStorage.setItem(`room_${joinRoomData.value.code}_nickname`, joinRoomData.value.nickname)
+        }
+        
         const roomData = await roomStore.joinRoom(
           joinRoomData.value.nickname,
           joinRoomData.value.code
@@ -362,9 +387,9 @@ export default {
         }
       } catch (error) {
         console.error('Join room error:', error)
-        notificationStore.showNotification('Failed to join room', 'error')
+        notificationStore.showNotification(`Failed to join room: ${error.message}`, 'error')
       } finally {
-        loading.value = false
+        joinLoading.value = false
       }
     }
     
@@ -381,9 +406,14 @@ export default {
     
     // Quick join a room (without form)
     async function quickJoinRoom(roomId) {
-      loading.value = true
+      joinLoading.value = true
       
       try {
+        // Save the nickname for later use
+        if (username.value) {
+          sessionStorage.setItem(`room_${roomId}_nickname`, username.value)
+        }
+        
         const roomData = await roomStore.joinRoom(username.value, roomId)
         
         if (roomData) {
@@ -392,9 +422,9 @@ export default {
         }
       } catch (error) {
         console.error('Quick join room error:', error)
-        notificationStore.showNotification('Failed to join room', 'error')
+        notificationStore.showNotification(`Failed to join room: ${error.message}`, 'error')
       } finally {
-        loading.value = false
+        joinLoading.value = false
       }
     }
     
@@ -459,6 +489,7 @@ export default {
     
     return {
       loading,
+      joinLoading,
       newRoom,
       joinRoomData,
       userRooms,
