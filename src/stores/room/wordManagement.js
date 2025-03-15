@@ -1,6 +1,6 @@
 import { currentRoom, loading, roomWords } from './state'
 import { useNotificationStore } from '@/stores/notification'
-import { doc, updateDoc, arrayUnion, arrayRemove } from 'firebase/firestore'
+import { doc, updateDoc, arrayUnion, arrayRemove, getDoc } from 'firebase/firestore'
 import { db } from '@/firebase'
 
 // Get dependencies
@@ -146,20 +146,39 @@ export async function markWordForAllPlayers(word) {
     
     const roomRef = doc(db, 'rooms', currentRoom.value.id)
     
+    // Always fetch the latest room data from Firestore to ensure we have the most current calledOutWords
+    const roomSnapshot = await getDoc(roomRef)
+    const latestRoomData = roomSnapshot.data()
+    const currentCalledOutWords = latestRoomData?.calledOutWords || []
+    
     // Toggle called out state
-    const isAlreadyCalled = (currentRoom.value.calledOutWords || []).includes(word)
+    const isAlreadyCalled = currentCalledOutWords.includes(word)
     
     if (isAlreadyCalled) {
       // Remove the word from called out words using arrayRemove
       await updateDoc(roomRef, {
         calledOutWords: arrayRemove(word)
       })
+      
+      // Update local state to ensure UI is in sync
+      if (currentRoom.value.calledOutWords) {
+        currentRoom.value.calledOutWords = currentRoom.value.calledOutWords.filter(w => w !== word)
+      }
+      
       notificationStore.showNotification(`"${word}" removed from called words`, 'info')
     } else {
       // Add the word to called out words using arrayUnion
       await updateDoc(roomRef, {
         calledOutWords: arrayUnion(word)
       })
+      
+      // Update local state to ensure UI is in sync
+      if (!currentRoom.value.calledOutWords) {
+        currentRoom.value.calledOutWords = [word]
+      } else if (!currentRoom.value.calledOutWords.includes(word)) {
+        currentRoom.value.calledOutWords.push(word)
+      }
+      
       notificationStore.showNotification(`"${word}" called out!`, 'success')
     }
     
@@ -189,11 +208,15 @@ async function autoMarkCellsWithWord(word, marked = true) {
   try {
     const roomRef = doc(db, 'rooms', currentRoom.value.id)
     
-    // Create deep clone of player grids
-    const playerGrids = JSON.parse(JSON.stringify(currentRoom.value.playerGrids))
-    let pendingApprovals = [...(currentRoom.value.pendingApprovals || [])]
+    // Get the latest room data from Firestore
+    const roomSnapshot = await getDoc(roomRef)
+    const latestRoomData = roomSnapshot.data()
+    
+    // Create deep clone of player grids from the latest data
+    const playerGrids = JSON.parse(JSON.stringify(latestRoomData.playerGrids || {}))
+    let pendingApprovals = [...(latestRoomData.pendingApprovals || [])]
     let hasChanges = false
-    let bingoWinners = [...(currentRoom.value.bingoWinners || [])]
+    let bingoWinners = [...(latestRoomData.bingoWinners || [])]
     let winnersChanged = false
     
     // For each player grid
@@ -228,7 +251,7 @@ async function autoMarkCellsWithWord(word, marked = true) {
       
       // Check if player's bingo status has changed
       const hadBingo = bingoWinners.includes(playerName)
-      const hasBingoNow = checkForBingo(grid, currentRoom.value.gridSize)
+      const hasBingoNow = checkForBingo(grid, latestRoomData.gridSize)
       
       // Add player to winners if they now have bingo
       if (!hadBingo && hasBingoNow) {
@@ -257,6 +280,14 @@ async function autoMarkCellsWithWord(word, marked = true) {
         }
         
         await updateDoc(roomRef, updateData)
+        
+        // Update local state to match the changes
+        currentRoom.value.playerGrids = playerGrids
+        currentRoom.value.pendingApprovals = pendingApprovals
+        if (winnersChanged) {
+          currentRoom.value.bingoWinners = bingoWinners
+        }
+        
         return true
       } catch (error) {
         console.error('Error updating player grids:', error)
