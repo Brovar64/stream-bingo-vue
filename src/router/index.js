@@ -9,7 +9,6 @@ const AdminRoomView = () => import('@/views/room/AdminRoomView.vue')
 const PlayerRoomView = () => import('@/views/room/PlayerRoomView.vue')
 const VueFirePlayerView = () => import('@/views/room/VueFirePlayerView.vue')
 const WordSetsView = () => import('@/views/WordSetsView.vue')
-const PunishmentSetsView = () => import('@/views/PunishmentSetsView.vue')
 const NotFoundView = () => import('@/views/NotFoundView.vue')
 
 // Routes configuration
@@ -51,20 +50,21 @@ const routes = [
     path: '/word-sets',
     name: 'word-sets',
     component: WordSetsView,
+    props: { type: 'Word' },
     meta: { requiresAuth: true }
   },
   {
     path: '/punishment-sets/player',
     name: 'player-punishment-sets',
-    component: PunishmentSetsView,
-    props: { type: 'Player' },
+    component: WordSetsView,
+    props: { type: 'Player Punishment' },
     meta: { requiresAuth: true }
   },
   {
     path: '/punishment-sets/creator',
     name: 'creator-punishment-sets',
-    component: PunishmentSetsView,
-    props: { type: 'Creator' },
+    component: WordSetsView,
+    props: { type: 'Creator Punishment' },
     meta: { requiresAuth: true }
   },
   {
