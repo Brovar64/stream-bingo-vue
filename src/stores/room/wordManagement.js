@@ -202,8 +202,9 @@ async function autoMarkCellsWithWord(word, marked = true) {
       for (const cellKey in grid) {
         const cell = grid[cellKey]
         
-        // If the cell contains the target word
-        if (cell.word === word) {
+        // If the cell contains the target word and is not "FREE"
+        if (cell.word === word && cell.word !== "FREE") {
+          // We're either marking or unmarking the word
           if (marked) {
             // Mark and auto-approve the cell
             cell.marked = true
@@ -215,9 +216,12 @@ async function autoMarkCellsWithWord(word, marked = true) {
               approval => !(approval.playerName === playerName && approval.row === row && approval.col === col)
             )
           } else {
-            // Unmark the cell
-            cell.marked = false
-            cell.approved = false
+            // Unmark the cell only if it was previously auto-approved
+            // Don't unmark cells that were manually marked by the player
+            if (cell.approved) {
+              cell.marked = false
+              cell.approved = false
+            }
           }
           
           hasChanges = true
@@ -226,16 +230,32 @@ async function autoMarkCellsWithWord(word, marked = true) {
     }
     
     if (hasChanges) {
-      // Update player grids and pending approvals
-      await updateDoc(roomRef, {
-        playerGrids,
-        pendingApprovals
-      })
-      
-      // Check for any new bingos
-      await checkForNewBingos(playerGrids)
-      
-      return true
+      try {
+        // Update player grids and pending approvals
+        await updateDoc(roomRef, {
+          playerGrids,
+          pendingApprovals
+        })
+        
+        // Check for any new bingos or removed bingos
+        await updateBingoStatus(playerGrids)
+        
+        return true
+      } catch (error) {
+        console.error('Error updating player grids:', error)
+        
+        // Try a more conservative approach if the update failed
+        if (error.message && (error.message.includes('Document was mutated') || error.message.includes('network error'))) {
+          // Fetch the latest document and retry
+          notificationStore.showNotification('Retrying update due to concurrent changes...', 'info')
+          
+          // Instead of failing, we'll retry the operation later
+          setTimeout(() => {
+            autoMarkCellsWithWord(word, marked)
+          }, 1000)
+        }
+        return false
+      }
     }
     
     return false
@@ -247,36 +267,49 @@ async function autoMarkCellsWithWord(word, marked = true) {
 }
 
 /**
- * Check if any players have achieved bingo after auto-marking
+ * Update bingo status for all players
  * @param {Object} playerGrids - All player grids
  */
-async function checkForNewBingos(playerGrids) {
+async function updateBingoStatus(playerGrids) {
   if (!currentRoom.value) return false
   
   try {
     const roomRef = doc(db, 'rooms', currentRoom.value.id)
-    let newWinners = false
+    let bingoWinners = [...(currentRoom.value.bingoWinners || [])]
+    let hasChanges = false
     
     // For each player grid
     for (const playerName in playerGrids) {
-      // Skip players who already have bingo
-      if (currentRoom.value.bingoWinners?.includes(playerName)) continue
-      
       const playerGrid = playerGrids[playerName]
       const hasBingo = checkForBingo(playerGrid, currentRoom.value.gridSize)
       
-      if (hasBingo && !currentRoom.value.bingoWinners?.includes(playerName)) {
-        // Use arrayUnion to safely add the winner to bingoWinners
-        await updateDoc(roomRef, { 
-          bingoWinners: arrayUnion(playerName) 
-        })
-        
-        newWinners = true
+      // If player has bingo and is not already in winners list
+      if (hasBingo && !bingoWinners.includes(playerName)) {
+        bingoWinners.push(playerName)
+        hasChanges = true
         notificationStore.showNotification(`${playerName} has BINGO!`, 'success')
+      }
+      // If player doesn't have bingo anymore but is in winners list
+      else if (!hasBingo && bingoWinners.includes(playerName)) {
+        bingoWinners = bingoWinners.filter(winner => winner !== playerName)
+        hasChanges = true
+        notificationStore.showNotification(`${playerName} no longer has BINGO.`, 'info')
       }
     }
     
-    return newWinners
+    if (hasChanges) {
+      try {
+        await updateDoc(roomRef, { 
+          bingoWinners 
+        })
+        return true
+      } catch (error) {
+        console.error('Error updating bingo winners:', error)
+        return false
+      }
+    }
+    
+    return false
   } catch (error) {
     console.error('Error checking for bingos:', error)
     return false
