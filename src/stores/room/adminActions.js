@@ -1,6 +1,6 @@
 import { currentRoom, loading, requiredWords, roomWords } from './state'
 import { useNotificationStore } from '@/stores/notification'
-import { doc, updateDoc, serverTimestamp, Timestamp, arrayUnion } from 'firebase/firestore'
+import { doc, updateDoc, serverTimestamp, arrayUnion } from 'firebase/firestore'
 import { db } from '@/firebase'
 import { checkForBingo } from './wordManagement'
 
