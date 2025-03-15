@@ -215,20 +215,36 @@
           <!-- Words List in Grid Layout -->
           <div class="card mb-6">
             <h2 class="text-xl font-semibold mb-4">Bingo Words</h2>
-            <p class="text-sm text-gray-400 mb-4">
-              Click on a word to mark it as called out for all players.
-            </p>
+            <div class="flex justify-between items-center mb-4">
+              <p class="text-sm text-gray-400">
+                Click on a word to toggle its called status.
+              </p>
+              <div class="flex gap-2 items-center text-sm">
+                <span class="flex items-center">
+                  <span class="w-3 h-3 inline-block bg-success bg-opacity-20 border border-success rounded-full mr-1"></span>
+                  Called
+                </span>
+                <span class="flex items-center ml-2">
+                  <span class="w-3 h-3 inline-block bg-background-lighter rounded-full mr-1"></span>
+                  Not Called
+                </span>
+              </div>
+            </div>
             
             <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 max-h-[400px] overflow-y-auto p-1">
               <div 
                 v-for="(word, index) in roomData.words" 
                 :key="index"
-                :class="['flex items-center p-3 rounded cursor-pointer transition-colors', 
-                        isWordCalledOut(word) ? 'bg-success bg-opacity-20 border border-success' : 'bg-background-lighter hover:bg-gray-700']"
+                :class="['bingo-word-card', 
+                        isWordCalledOut(word) ? 'called-out' : '']"
                 @click="callOutWord(word)"
               >
-                <span class="flex-grow truncate mr-1">{{ word }}</span>
-                <span v-if="isWordCalledOut(word)" class="text-success text-sm ml-auto flex-shrink-0">✓</span>
+                <div class="bingo-word-content">{{ word }}</div>
+                
+                <div class="bingo-word-status">
+                  <span v-if="isWordCalledOut(word)" class="called-toggle check">✓</span>
+                  <span v-else class="called-toggle uncheck">+</span>
+                </div>
               </div>
             </div>
             
@@ -433,7 +449,7 @@ export default {
     
     // Call out a word
     function callOutWord(word) {
-      // Mark this word as called out for all players
+      // Toggle the word's called-out status
       roomStore.markWordForAllPlayers(word)
     }
     
@@ -610,5 +626,51 @@ export default {
   background-color: #FF4081;
   border-radius: 4px;
   transition: width 0.3s ease;
+}
+
+/* Bingo word card styling */
+.bingo-word-card {
+  @apply relative bg-background-lighter p-3 rounded flex items-center justify-between transition-colors cursor-pointer;
+  min-height: 60px;
+}
+
+.bingo-word-card:hover {
+  @apply bg-gray-700;
+}
+
+.bingo-word-card.called-out {
+  @apply bg-success bg-opacity-20 border border-success;
+}
+
+.bingo-word-card.called-out:hover {
+  @apply bg-success bg-opacity-30;
+}
+
+.bingo-word-content {
+  @apply overflow-hidden break-words w-full text-sm pr-6;
+  word-break: break-word;
+}
+
+.called-toggle {
+  @apply absolute right-2 top-1/2 transform -translate-y-1/2 w-5 h-5 flex items-center justify-center rounded-full text-sm font-bold;
+  transition: all 0.2s ease;
+}
+
+.called-toggle.check {
+  @apply bg-success text-white;
+}
+
+.called-toggle.uncheck {
+  @apply bg-gray-600 text-gray-300 rotate-45;
+}
+
+.bingo-word-card:hover .called-toggle.check {
+  @apply bg-red-500;
+  transform: translateY(-50%) rotate(45deg);
+  content: "×";
+}
+
+.bingo-word-card:hover .called-toggle.uncheck {
+  @apply bg-success text-white rotate-0;
 }
 </style>
