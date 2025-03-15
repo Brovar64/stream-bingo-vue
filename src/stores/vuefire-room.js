@@ -102,10 +102,57 @@ export const useVueFireRoomStore = defineStore('vuefireRoom', () => {
   }
   
   /**
+   * Helper to generate a player grid
+   */
+  function generatePlayerGrid(nickname, roomData) {
+    if (!roomData || !roomData.words || roomData.words.length === 0) {
+      console.error('Cannot generate grid: no words available');
+      return null;
+    }
+    
+    const gridSize = roomData.gridSize || 5;
+    const totalCells = gridSize * gridSize;
+    
+    // Check if we have enough words
+    if (roomData.words.length < totalCells) {
+      console.error(`Not enough words (${roomData.words.length}) for grid size ${gridSize}x${gridSize}`);
+      return null;
+    }
+    
+    // Shuffle words for randomness
+    const shuffledWords = [...roomData.words].sort(() => Math.random() - 0.5);
+    
+    // Generate grid
+    const grid = {};
+    for (let row = 0; row < gridSize; row++) {
+      for (let col = 0; col < gridSize; col++) {
+        const index = row * gridSize + col;
+        const cellKey = `${row}_${col}`;
+        
+        // For standard bingo with odd grid size, make center a free space
+        const isCenterCell = gridSize % 2 === 1 && 
+                           row === Math.floor(gridSize / 2) && 
+                           col === Math.floor(gridSize / 2);
+        
+        grid[cellKey] = {
+          word: isCenterCell ? 'FREE' : shuffledWords[index],
+          row: row,
+          col: col,
+          marked: isCenterCell, // Center cell is pre-marked
+          approved: isCenterCell // Center cell is pre-approved
+        };
+      }
+    }
+    
+    return grid;
+  }
+  
+  /**
    * Join a room as a player
    */
   async function joinRoom(nickname, roomId) {
     loading.value = true;
+    console.log(`VueFire: Joining room ${roomId} as ${nickname}`);
     
     try {
       if (!nickname) {
@@ -142,10 +189,13 @@ export const useVueFireRoomStore = defineStore('vuefireRoom', () => {
         return null;
       }
       
+      console.log(`VueFire: Room loaded with status: ${roomData.value.status}`);
+      
       // Check if player already exists in the room
       const playerExists = (roomData.value.players || []).some(player => player.nickname === nickname);
       
       if (!playerExists) {
+        console.log(`VueFire: Adding new player ${nickname} to room`);
         // Create player data
         const playerData = {
           nickname: nickname,
@@ -159,7 +209,45 @@ export const useVueFireRoomStore = defineStore('vuefireRoom', () => {
         
         notificationStore.showNotification(`Joined room ${roomId} as ${nickname}`, 'success');
       } else {
+        console.log(`VueFire: Player ${nickname} already exists in room`);
         notificationStore.showNotification(`Resumed session in room ${roomId} as ${nickname}`, 'success');
+      }
+      
+      // Check if room is active and player grid needs to be created
+      if (roomData.value.status === 'active') {
+        console.log(`VueFire: Room is active, checking if player has grid`);
+        
+        // Check if this player already has a grid
+        const hasGrid = roomData.value.playerGrids && 
+                      roomData.value.playerGrids[nickname] && 
+                      Object.keys(roomData.value.playerGrids[nickname]).length > 0;
+        
+        if (!hasGrid) {
+          console.log(`VueFire: Generating new grid for player ${nickname}`);
+          
+          // Generate a grid for this player
+          const playerGrid = generatePlayerGrid(nickname, roomData.value);
+          
+          if (playerGrid) {
+            // Get current player grids or initialize empty object
+            const playerGrids = roomData.value.playerGrids || {};
+            
+            // Add the new player grid
+            playerGrids[nickname] = playerGrid;
+            
+            // Update Firestore
+            console.log(`VueFire: Saving player grid to Firestore`);
+            await updateDoc(doc(db, 'rooms', roomId), { playerGrids });
+            
+            console.log(`VueFire: Player grid created successfully`);
+          } else {
+            console.error(`VueFire: Failed to generate player grid`);
+          }
+        } else {
+          console.log(`VueFire: Player already has a grid`);
+        }
+      } else {
+        console.log(`VueFire: Room is not active, no grid needed yet`);
       }
       
       loading.value = false;
