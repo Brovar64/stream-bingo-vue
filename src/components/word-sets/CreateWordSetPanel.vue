@@ -54,6 +54,7 @@ export default {
   methods: {
     openCreateModal() {
       if (!this.setName.trim()) return;
+      console.log('CreateWordSetPanel: Emitting create event with type:', 'word');
       this.$emit('create', 'word');
     }
   }
