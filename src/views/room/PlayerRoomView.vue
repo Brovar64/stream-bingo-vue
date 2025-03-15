@@ -87,7 +87,7 @@
           <p class="text-gray-300">Congratulations on achieving bingo!</p>
         </div>
         
-        <div v-if="!playerGrid" class="text-center py-8">
+        <div v-if="!hasPlayerGrid" class="text-center py-8">
           <div class="spinner mx-auto mb-4"></div>
           <p class="text-gray-400 mb-3">Your bingo board is being prepared...</p>
           <p class="text-sm text-gray-500">This may take a few seconds. If it doesn't appear soon, try refreshing the page.</p>
@@ -191,6 +191,12 @@ export default {
       return roomData.value.playerGrids[username.value] || null
     })
     
+    // Updated: explicit check if player grid exists and has data
+    const hasPlayerGrid = computed(() => {
+      if (!playerGrid.value) return false
+      return Object.keys(playerGrid.value).length > 0
+    })
+    
     // Check if player has won
     const hasWon = computed(() => {
       if (!roomData.value?.bingoWinners) return false
@@ -215,7 +221,7 @@ export default {
     
     // Watch for player grid changes
     watch(() => playerGrid.value, (newGrid) => {
-      if (newGrid) {
+      if (newGrid && Object.keys(newGrid).length > 0) {
         // Player grid loaded successfully
         loadError.value = false
       } else if (isRoomActive.value && boardLoadAttempts.value > 0) {
@@ -249,14 +255,18 @@ export default {
         }
         
         // First join the room with the current username
-        await roomStore.joinRoom(username.value, roomId)
+        const joinResult = await roomStore.joinRoom(username.value, roomId)
         
-        // Then load the room data
-        await loadRoom()
+        if (!joinResult) {
+          loadError.value = true
+          loadErrorMessage.value = 'Failed to join the room. Please try again.'
+          loading.value = false
+          return
+        }
         
         // Start checking for player grid if room is active
-        if (isRoomActive.value && !playerGrid.value) {
-          loadPlayerGrid()
+        if (isRoomActive.value) {
+          await loadPlayerGrid()
         }
         
         loading.value = false
@@ -292,12 +302,15 @@ export default {
         await roomStore.loadRoom(roomId)
         
         // If we still don't have a player grid after room load
-        if (isRoomActive.value && !playerGrid.value) {
+        if (isRoomActive.value && (!playerGrid.value || Object.keys(playerGrid.value).length === 0)) {
           // Re-join the room to ensure player is registered
           await roomStore.joinRoom(username.value, roomId)
           
+          // Try loading the room one more time
+          await roomStore.loadRoom(roomId)
+          
           // If still no grid after 3 attempts, show error
-          if (boardLoadAttempts.value >= 3 && !playerGrid.value) {
+          if (boardLoadAttempts.value >= 3 && (!playerGrid.value || Object.keys(playerGrid.value).length === 0)) {
             loadError.value = true
             loadErrorMessage.value = 'Unable to load your bingo board. Please try again later.'
           }
@@ -318,6 +331,7 @@ export default {
     async function retryLoading() {
       loadError.value = false
       loading.value = true
+      boardLoadAttempts.value = 0
       
       await loadRoom()
       
@@ -404,6 +418,7 @@ export default {
       isRoomActive,
       gridSize,
       playerGrid,
+      hasPlayerGrid,
       hasWon,
       markedCellsCount,
       approvedCellsCount,
