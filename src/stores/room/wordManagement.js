@@ -1,6 +1,6 @@
 import { currentRoom, loading, roomWords } from './state'
 import { useNotificationStore } from '@/stores/notification'
-import { doc, updateDoc } from 'firebase/firestore'
+import { doc, updateDoc, arrayUnion, arrayRemove } from 'firebase/firestore'
 import { db } from '@/firebase'
 
 // Get dependencies
@@ -26,14 +26,16 @@ export async function addMultipleWords(words) {
   try {
     const roomRef = doc(db, 'rooms', currentRoom.value.id)
     
-    // Get existing words and add new ones
+    // For a large number of words, it's better to update the whole array
+    // rather than using arrayUnion multiple times
     const existingWords = [...roomWords.value]
-    const updatedWords = [...existingWords, ...words]
+    const uniqueNewWords = words.filter(word => !existingWords.includes(word))
+    const updatedWords = [...existingWords, ...uniqueNewWords]
     
     // Update the document
     await updateDoc(roomRef, { words: updatedWords })
     
-    notificationStore.showNotification(`Added ${words.length} words to the word list`, 'success')
+    notificationStore.showNotification(`Added ${uniqueNewWords.length} words to the word list`, 'success')
     return true
   } catch (error) {
     console.error('Error adding words:', error)
@@ -64,11 +66,10 @@ export async function addWord(word) {
   try {
     const roomRef = doc(db, 'rooms', currentRoom.value.id)
     
-    // Get existing words
-    const words = [...roomWords.value, word]
-    
-    // Update the document
-    await updateDoc(roomRef, { words })
+    // Use arrayUnion to safely add the word
+    await updateDoc(roomRef, { 
+      words: arrayUnion(word) 
+    })
     
     notificationStore.showNotification(`Added "${word}" to the word list`, 'success')
     return true
@@ -98,11 +99,12 @@ export async function removeWord(index) {
     
     if (index >= 0 && index < words.length) {
       const wordToRemove = words[index]
-      words.splice(index, 1)
       
-      // Update the document
+      // Use arrayRemove for a single word removal
       const roomRef = doc(db, 'rooms', currentRoom.value.id)
-      await updateDoc(roomRef, { words })
+      await updateDoc(roomRef, { 
+        words: arrayRemove(wordToRemove) 
+      })
       
       notificationStore.showNotification(`Removed "${wordToRemove}" from the word list`, 'success')
       return true
@@ -145,23 +147,21 @@ export async function markWordForAllPlayers(word) {
     const roomRef = doc(db, 'rooms', currentRoom.value.id)
     
     // Toggle called out state
-    let calledOutWords = [...(currentRoom.value.calledOutWords || [])]
-    const isAlreadyCalled = calledOutWords.includes(word)
+    const isAlreadyCalled = (currentRoom.value.calledOutWords || []).includes(word)
     
     if (isAlreadyCalled) {
-      // Remove the word from called out words
-      calledOutWords = calledOutWords.filter(w => w !== word)
+      // Remove the word from called out words using arrayRemove
+      await updateDoc(roomRef, {
+        calledOutWords: arrayRemove(word)
+      })
       notificationStore.showNotification(`"${word}" removed from called words`, 'info')
     } else {
-      // Add the word to called out words
-      calledOutWords.push(word)
+      // Add the word to called out words using arrayUnion
+      await updateDoc(roomRef, {
+        calledOutWords: arrayUnion(word)
+      })
       notificationStore.showNotification(`"${word}" called out!`, 'success')
     }
-    
-    // Update the database
-    await updateDoc(roomRef, {
-      calledOutWords: calledOutWords
-    })
     
     // Auto-mark cells in all player grids that contain this word
     await autoMarkCellsWithWord(word, !isAlreadyCalled)
@@ -255,26 +255,25 @@ async function checkForNewBingos(playerGrids) {
   
   try {
     const roomRef = doc(db, 'rooms', currentRoom.value.id)
-    let bingoWinners = [...(currentRoom.value.bingoWinners || [])]
     let newWinners = false
     
     // For each player grid
     for (const playerName in playerGrids) {
       // Skip players who already have bingo
-      if (bingoWinners.includes(playerName)) continue
+      if (currentRoom.value.bingoWinners?.includes(playerName)) continue
       
       const playerGrid = playerGrids[playerName]
       const hasBingo = checkForBingo(playerGrid, currentRoom.value.gridSize)
       
-      if (hasBingo && !bingoWinners.includes(playerName)) {
-        bingoWinners.push(playerName)
+      if (hasBingo && !currentRoom.value.bingoWinners?.includes(playerName)) {
+        // Use arrayUnion to safely add the winner to bingoWinners
+        await updateDoc(roomRef, { 
+          bingoWinners: arrayUnion(playerName) 
+        })
+        
         newWinners = true
         notificationStore.showNotification(`${playerName} has BINGO!`, 'success')
       }
-    }
-    
-    if (newWinners) {
-      await updateDoc(roomRef, { bingoWinners })
     }
     
     return newWinners
