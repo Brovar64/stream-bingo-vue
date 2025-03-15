@@ -53,7 +53,7 @@ export const useVueFireRoomStore = defineStore('vuefireRoom', () => {
   /**
    * Creates a new room with the specified parameters
    */
-  async function createRoom(roomCode, gridSize = 5, initialWords = []) {
+  async function createRoom(roomCode, gridSize = 3, initialWords = []) {
     loading.value = true;
     
     try {
@@ -67,7 +67,7 @@ export const useVueFireRoomStore = defineStore('vuefireRoom', () => {
       
       // Validate grid size
       if (![3, 4, 5].includes(gridSize)) {
-        gridSize = 5; // Default to 5x5 if invalid
+        gridSize = 3; // Default to 3x3 if invalid
       }
       
       // Create new room data
@@ -110,7 +110,7 @@ export const useVueFireRoomStore = defineStore('vuefireRoom', () => {
       return null;
     }
     
-    const gridSize = roomData.gridSize || 5;
+    const gridSize = roomData.gridSize || 3;
     const totalCells = gridSize * gridSize;
     
     // Check if we have enough words
@@ -129,17 +129,12 @@ export const useVueFireRoomStore = defineStore('vuefireRoom', () => {
         const index = row * gridSize + col;
         const cellKey = `${row}_${col}`;
         
-        // For standard bingo with odd grid size, make center a free space
-        const isCenterCell = gridSize % 2 === 1 && 
-                           row === Math.floor(gridSize / 2) && 
-                           col === Math.floor(gridSize / 2);
-        
         grid[cellKey] = {
-          word: isCenterCell ? 'FREE' : shuffledWords[index],
+          word: shuffledWords[index],
           row: row,
           col: col,
-          marked: isCenterCell, // Center cell is pre-marked
-          approved: isCenterCell // Center cell is pre-approved
+          marked: false,
+          approved: false
         };
       }
     }
