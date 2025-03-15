@@ -7,6 +7,21 @@
       <p class="text-gray-400">Please wait...</p>
     </div>
     
+    <!-- Error state -->
+    <div v-else-if="loadError" class="text-center py-16">
+      <div class="text-error mb-4 text-5xl">⚠️</div>
+      <h2 class="text-xl font-semibold mb-2">Error Loading Game</h2>
+      <p class="text-gray-400 mb-6">{{ loadErrorMessage }}</p>
+      <div class="flex justify-center">
+        <button @click="retryLoading" class="btn bg-primary hover:bg-primary-dark text-white mr-4">
+          Retry
+        </button>
+        <router-link to="/dashboard" class="btn bg-background-lighter hover:bg-gray-700 text-white">
+          Back to Dashboard
+        </router-link>
+      </div>
+    </div>
+    
     <!-- Game not active / waiting state -->
     <div v-else-if="!isRoomActive" class="text-center py-16">
       <h2 class="text-2xl font-semibold mb-2">Waiting for Game to Start</h2>
@@ -73,7 +88,15 @@
         </div>
         
         <div v-if="!playerGrid" class="text-center py-8">
-          <p class="text-gray-400">Your bingo board is being prepared...</p>
+          <div class="spinner mx-auto mb-4"></div>
+          <p class="text-gray-400 mb-3">Your bingo board is being prepared...</p>
+          <p class="text-sm text-gray-500">This may take a few seconds. If it doesn't appear soon, try refreshing the page.</p>
+          <button 
+            @click="loadPlayerGrid" 
+            class="btn bg-primary hover:bg-primary-dark text-white mt-4"
+          >
+            Reload Board
+          </button>
         </div>
         
         <div v-else>
@@ -132,10 +155,11 @@
 </template>
 
 <script>
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useRoomStore } from '@/stores/room'
 import { useNotificationStore } from '@/stores/notification'
+import { useAuthStore } from '@/stores/auth'
 
 export default {
   name: 'PlayerRoomView',
@@ -144,6 +168,7 @@ export default {
     const router = useRouter()
     const roomStore = useRoomStore()
     const notificationStore = useNotificationStore()
+    const authStore = useAuthStore()
     
     // Get room ID from route params
     const roomId = route.params.id
@@ -151,6 +176,9 @@ export default {
     // State
     const loading = ref(true)
     const nickname = ref('')
+    const loadError = ref(false)
+    const loadErrorMessage = ref('')
+    const boardLoadAttempts = ref(0)
     
     // Computed properties
     const roomData = computed(() => roomStore.currentRoom)
@@ -185,20 +213,47 @@ export default {
       return Object.values(playerGrid.value).filter(cell => cell.marked && !cell.approved).length
     })
     
+    // Watch for player grid changes
+    watch(() => playerGrid.value, (newGrid) => {
+      if (newGrid) {
+        // Player grid loaded successfully
+        loadError.value = false
+      } else if (isRoomActive.value && boardLoadAttempts.value > 0) {
+        // If room is active but no grid found after load attempts
+        if (boardLoadAttempts.value >= 3) {
+          loadError.value = true
+          loadErrorMessage.value = 'Could not load your bingo board. The admin may need to reset the game.'
+        }
+      }
+    })
+    
+    // Watch for room data changes to detect errors
+    watch(() => roomData.value, (newRoomData) => {
+      if (!newRoomData && boardLoadAttempts.value > 0) {
+        loadError.value = true
+        loadErrorMessage.value = 'Error loading room data. Please try again.'
+      }
+    })
+    
     // Load room data on component mount
     onMounted(async () => {
       loading.value = true
       
       try {
-        // Try to get nickname from session storage
-        const storedNickname = sessionStorage.getItem(`room_${roomId}_nickname`)
+        // Try to get nickname from session storage first
+        let storedNickname = sessionStorage.getItem(`room_${roomId}_nickname`)
+        
+        // If not in session storage, use the logged-in username as default
+        if (!storedNickname && authStore.username) {
+          storedNickname = authStore.username
+        }
         
         if (storedNickname) {
           nickname.value = storedNickname
-          await roomStore.loadRoom(roomId)
+          await loadRoom()
         } else {
-          // Prompt for nickname if not stored
-          const userNickname = prompt('Enter your nickname:')
+          // Prompt for nickname only if we really don't have one
+          const userNickname = prompt('Enter your nickname to join the game:')
           
           if (!userNickname) {
             // If user cancels, go back to dashboard
@@ -222,13 +277,79 @@ export default {
           sessionStorage.setItem(`room_${roomId}_nickname`, userNickname)
         }
         
+        // Start checking for player grid if room is active
+        if (isRoomActive.value && !playerGrid.value) {
+          loadPlayerGrid()
+        }
+        
         loading.value = false
       } catch (error) {
         console.error('Error loading room:', error)
-        notificationStore.showNotification('Error loading room', 'error')
-        router.push('/dashboard')
+        loadError.value = true
+        loadErrorMessage.value = error.message || 'Error loading room'
+        loading.value = false
       }
     })
+    
+    // Load room data
+    async function loadRoom() {
+      try {
+        await roomStore.loadRoom(roomId)
+        return true
+      } catch (error) {
+        console.error('Error loading room:', error)
+        loadError.value = true
+        loadErrorMessage.value = error.message || 'Failed to load room data'
+        return false
+      }
+    }
+    
+    // Try to load player grid
+    async function loadPlayerGrid() {
+      boardLoadAttempts.value++
+      
+      if (!nickname.value || !roomId) return false
+      
+      try {
+        // First ensure we have the latest room data
+        await roomStore.loadRoom(roomId)
+        
+        // If we still don't have a player grid after room load
+        if (isRoomActive.value && !playerGrid.value) {
+          // Re-join the room to ensure player is registered
+          await roomStore.joinRoom(nickname.value, roomId)
+          
+          // If still no grid after 3 attempts, show error
+          if (boardLoadAttempts.value >= 3 && !playerGrid.value) {
+            loadError.value = true
+            loadErrorMessage.value = 'Unable to load your bingo board. Please try again later.'
+          }
+        }
+        
+        return true
+      } catch (error) {
+        console.error('Error loading player grid:', error)
+        if (boardLoadAttempts.value >= 3) {
+          loadError.value = true
+          loadErrorMessage.value = error.message || 'Failed to load your bingo board'
+        }
+        return false
+      }
+    }
+    
+    // Retry loading room and player grid
+    async function retryLoading() {
+      loadError.value = false
+      loading.value = true
+      
+      await loadRoom()
+      
+      if (isRoomActive.value) {
+        await loadPlayerGrid()
+      }
+      
+      loading.value = false
+    }
     
     // Cleanup on component unmount
     onUnmounted(() => {
@@ -253,8 +374,13 @@ export default {
         return
       }
       
-      // Mark the cell
-      await roomStore.markCell(nickname.value, row, col)
+      try {
+        // Mark the cell
+        await roomStore.markCell(nickname.value, row, col)
+      } catch (error) {
+        console.error('Error marking cell:', error)
+        notificationStore.showNotification(`Error marking cell: ${error.message}`, 'error')
+      }
     }
     
     // Get CSS classes for a cell based on its state
@@ -305,10 +431,14 @@ export default {
       markedCellsCount,
       approvedCellsCount,
       pendingApprovalCount,
+      loadError,
+      loadErrorMessage,
       markCell,
       getCellClasses,
       getCellWord,
-      getCellState
+      getCellState,
+      retryLoading,
+      loadPlayerGrid
     }
   }
 }
