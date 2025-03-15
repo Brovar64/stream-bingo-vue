@@ -247,7 +247,7 @@
 <script>
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { useRoomStore } from '@/stores/room'
+import { useRoomStore } from '@/stores/room/'
 import { useNotificationStore } from '@/stores/notification'
 import PlayerList from '@/components/bingo/PlayerList.vue'
 import MasterBingoGrid from '@/components/bingo/MasterBingoGrid.vue'
@@ -384,14 +384,12 @@ export default {
     // Call out a word in master grid
     function callOutWord(word) {
       // Mark this word as called out for all players
-      // This would need to be implemented in your roomStore
       roomStore.markWordForAllPlayers(word)
     }
     
     // Reset called out words
     function resetCalledWords() {
       // Reset all called out words
-      // This would need to be implemented in your roomStore
       roomStore.resetCalledOutWords()
     }
     
