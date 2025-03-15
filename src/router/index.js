@@ -9,11 +9,8 @@ const AdminRoomView = () => import('@/views/room/AdminRoomView.vue')
 const PlayerRoomView = () => import('@/views/room/PlayerRoomView.vue')
 const VueFirePlayerView = () => import('@/views/room/VueFirePlayerView.vue')
 const WordSetsView = () => import('@/views/WordSetsView.vue')
+const SetDebugView = () => import('@/views/SetDebugView.vue')
 const NotFoundView = () => import('@/views/NotFoundView.vue')
-
-// Punishment Game Mode Views
-const PunishmentRoomView = () => import('@/views/room/PunishmentRoomView.vue')
-const PunishmentPlayerView = () => import('@/views/room/PunishmentPlayerView.vue')
 
 // Routes configuration
 const routes = [
@@ -57,15 +54,10 @@ const routes = [
     meta: { requiresAuth: true }
   },
   {
-    path: '/punishment/:id',
-    name: 'punishment-room',
-    component: PunishmentRoomView,
-    meta: { requiresAuth: true }
-  },
-  {
-    path: '/punishment-play/:id',
-    name: 'punishment-player-room',
-    component: PunishmentPlayerView
+    path: '/debug/modal',
+    name: 'modal-debug',
+    component: SetDebugView,
+    meta: { public: true }
   },
   {
     path: '/auth-callback',
