@@ -2,7 +2,8 @@ import { currentRoom, loading, requiredWords, roomWords } from './state'
 import { useNotificationStore } from '@/stores/notification'
 import { doc, updateDoc, serverTimestamp, arrayUnion } from 'firebase/firestore'
 import { db } from '@/firebase'
-import { checkForBingo } from './wordManagement'
+import { checkForBingo } from '@/utils/gridUtils'
+import { generateBingoGrid } from '@/utils/gridUtils'
 
 // Get dependencies
 const notificationStore = useNotificationStore()
@@ -106,28 +107,8 @@ export async function assignPlayerGrids() {
     const playerGrids = {}
     
     for (const player of players) {
-      // Shuffle words and pick the first gridSize*gridSize words
-      const shuffledWords = [...words].sort(() => Math.random() - 0.5).slice(0, totalCells)
-      
-      // Create flat grid object
-      const grid = {}
-      
-      for (let i = 0; i < gridSize; i++) {
-        for (let j = 0; j < gridSize; j++) {
-          const index = i * gridSize + j
-          const cellKey = `${i}_${j}`
-          
-          grid[cellKey] = {
-            word: shuffledWords[index],
-            marked: false,
-            approved: false,
-            row: i,
-            col: j
-          }
-        }
-      }
-      
-      playerGrids[player.nickname] = grid
+      // Use the centralized grid generation utility - this ensures NO "FREE" cell
+      playerGrids[player.nickname] = generateBingoGrid(words, gridSize)
     }
     
     // Update room with player grids
