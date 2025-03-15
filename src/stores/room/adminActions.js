@@ -127,21 +127,6 @@ export async function assignPlayerGrids() {
         }
       }
       
-      // Add free space in the middle for odd-sized grids
-      if (gridSize % 2 === 1) {
-        const middleRow = Math.floor(gridSize / 2)
-        const middleCol = Math.floor(gridSize / 2)
-        const middleCellKey = `${middleRow}_${middleCol}`
-        
-        grid[middleCellKey] = {
-          word: "FREE",
-          marked: true,
-          approved: true,
-          row: middleRow,
-          col: middleCol
-        }
-      }
-      
       playerGrids[player.nickname] = grid
     }
     
