@@ -1,6 +1,6 @@
 import { currentRoom, loading } from './state'
 import { useNotificationStore } from '@/stores/notification'
-import { doc, getDoc, updateDoc, serverTimestamp } from 'firebase/firestore'
+import { doc, getDoc, updateDoc, arrayUnion, Timestamp } from 'firebase/firestore'
 import { db } from '@/firebase'
 import { loadRoom } from './roomCrud'
 
@@ -47,21 +47,21 @@ export async function joinRoom(nickname, roomId) {
       return null
     }
     
-    // Add player to the room if not already present
+    // Check if player already exists in the room
     const playerExists = (roomData.players || []).some(player => player.nickname === nickname)
     
     if (!playerExists) {
-      // Create player data
+      // Create player data - Use client-side timestamp instead of serverTimestamp
       const playerData = {
         nickname: nickname,
-        joinedAt: serverTimestamp()
+        joinedAt: Timestamp.now() // Use client-side timestamp to avoid Firebase array issues
       }
       
-      // Add to players array
-      const players = [...(roomData.players || []), playerData]
+      // Update room using arrayUnion to safely add to the array
+      await updateDoc(roomRef, { 
+        players: arrayUnion(playerData)
+      })
       
-      // Update room
-      await updateDoc(roomRef, { players })
       notificationStore.showNotification(`Joined room ${roomId} as ${nickname}`, 'success')
     } else {
       notificationStore.showNotification(`Resumed session in room ${roomId} as ${nickname}`, 'success')
@@ -137,29 +137,32 @@ export async function markCell(playerName, row, col) {
     // Update the cell as marked but pending approval
     playerGrids[playerName][cellKey].marked = true
     
-    // Create approval request for admin
-    const pendingApprovals = [...(currentRoom.value.pendingApprovals || [])]
+    // Create approval request
+    const approvalData = {
+      playerName: playerName,
+      row: row,
+      col: col,
+      word: grid[cellKey].word,
+      timestamp: Timestamp.now() // Use client-side timestamp
+    }
     
-    // Check if approval already exists
-    const approvalExists = pendingApprovals.some(
+    // Check if approval already exists (to avoid duplicates)
+    const approvalExists = (currentRoom.value.pendingApprovals || []).some(
       approval => approval.playerName === playerName && approval.row === row && approval.col === col
     )
     
+    // Update room data
     if (!approvalExists) {
-      pendingApprovals.push({
-        playerName: playerName,
-        row: row,
-        col: col,
-        word: grid[cellKey].word,
-        timestamp: serverTimestamp()
+      await updateDoc(roomRef, {
+        playerGrids: playerGrids,
+        pendingApprovals: arrayUnion(approvalData) // Use arrayUnion for safe array updates
+      })
+    } else {
+      // Just update the grid if approval already exists
+      await updateDoc(roomRef, {
+        playerGrids: playerGrids
       })
     }
-    
-    // Update room data
-    await updateDoc(roomRef, {
-      playerGrids: playerGrids,
-      pendingApprovals: pendingApprovals
-    })
     
     notificationStore.showNotification('Cell marked! Waiting for admin approval.', 'success')
     return true
