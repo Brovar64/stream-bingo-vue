@@ -54,7 +54,6 @@ export default {
   methods: {
     openCreateModal() {
       if (!this.setName.trim()) return;
-      console.log('CreatePlayerPunishmentPanel emitting create event with type: playerPunishment');
       this.$emit('create', 'playerPunishment');
     }
   }
