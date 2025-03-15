@@ -12,6 +12,21 @@
       </div>
     </div>
     
+    <!-- User info banner -->
+    <div class="bg-background-lighter p-4 rounded-lg mb-6 flex justify-between items-center">
+      <div>
+        <span class="text-gray-400">Logged in as:</span> 
+        <span class="font-semibold ml-1">{{ username }}</span>
+      </div>
+      <button 
+        v-if="isTestUser"
+        @click="openLoginTab" 
+        class="btn bg-primary hover:bg-primary-dark text-white text-sm py-1 px-3"
+      >
+        Open New Login Tab
+      </button>
+    </div>
+    
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
       <!-- Create Room Card -->
       <div class="card">
@@ -86,6 +101,9 @@
               placeholder="Enter your nickname"
               required
             >
+            <p v-if="isTestUser" class="text-xs text-gray-400 mt-1">
+              Default nickname is the username you're logged in with
+            </p>
           </div>
           
           <div class="form-group">
@@ -157,6 +175,51 @@
                 </button>
               </div>
             </div>
+            
+            <!-- Quick join section for active rooms -->
+            <div v-if="room.status === 'active' && isTestUser" class="mt-3 pt-3 border-t border-gray-700">
+              <div class="flex items-center">
+                <button 
+                  @click="copyRoomCodeForTesting(room.id)"
+                  class="text-primary hover:text-primary-light text-sm flex items-center"
+                >
+                  <span class="mr-1">📋</span> Copy room code for testing
+                </button>
+                <button 
+                  v-if="username !== 'Admin'"
+                  @click="quickJoinRoom(room.id)"
+                  class="ml-auto btn bg-success text-white text-xs py-1 px-2"
+                >
+                  Quick Join as {{ username }}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Active Rooms section for all users (primarily for testing) -->
+    <div v-if="allActiveRooms.length > 0" class="mt-8">
+      <h2 class="text-xl font-semibold mb-4">All Active Rooms</h2>
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div 
+          v-for="room in allActiveRooms" 
+          :key="room.id"
+          class="bg-background-lighter p-4 rounded-lg"
+        >
+          <div class="flex justify-between">
+            <div>
+              <h3 class="font-semibold">Room: {{ room.id }}</h3>
+              <p class="text-sm text-gray-400">{{ room.gridSize }}x{{ room.gridSize }} grid</p>
+              <p class="text-sm text-gray-400">{{ room.players?.length || 0 }} players</p>
+            </div>
+            <button 
+              @click="setJoinRoomCode(room.id)"
+              class="btn bg-primary hover:bg-primary-dark text-white text-sm py-1 px-3"
+            >
+              Join
+            </button>
           </div>
         </div>
       </div>
@@ -165,7 +228,7 @@
 </template>
 
 <script>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useRoomStore } from '@/stores/room'
@@ -191,12 +254,29 @@ export default {
       code: ''
     })
     const userRooms = ref([])
+    const allActiveRooms = ref([])
     const wordSets = ref([])
+    
+    // Computed properties
+    const username = computed(() => authStore.username)
+    const isTestUser = computed(() => {
+      return authStore.user?.authMethod === 'test'
+    })
     
     // Load user's rooms on component mount
     onMounted(async () => {
       loading.value = true
+      
+      // Set default nickname to current username
+      joinRoomData.value.nickname = authStore.username
+      
+      // Load user's rooms
       userRooms.value = await roomStore.loadUserRooms()
+      
+      // Load all active rooms (for testing)
+      if (isTestUser.value) {
+        allActiveRooms.value = await roomStore.loadActiveRooms()
+      }
       
       // Load saved word sets
       loadWordSets()
@@ -288,6 +368,53 @@ export default {
       }
     }
     
+    // Set the join room code (from the active rooms list)
+    function setJoinRoomCode(code) {
+      joinRoomData.value.code = code
+      // Scroll to join form
+      document.getElementById('joinRoomCode').scrollIntoView({ behavior: 'smooth' })
+      // Focus the input
+      setTimeout(() => {
+        document.getElementById('joinRoomCode').focus()
+      }, 500)
+    }
+    
+    // Quick join a room (without form)
+    async function quickJoinRoom(roomId) {
+      loading.value = true
+      
+      try {
+        const roomData = await roomStore.joinRoom(username.value, roomId)
+        
+        if (roomData) {
+          // Navigate to the player room page
+          router.push(`/play/${roomData.id}`)
+        }
+      } catch (error) {
+        console.error('Quick join room error:', error)
+        notificationStore.showNotification('Failed to join room', 'error')
+      } finally {
+        loading.value = false
+      }
+    }
+    
+    // Copy room code for testing
+    function copyRoomCodeForTesting(roomId) {
+      navigator.clipboard.writeText(roomId)
+        .then(() => {
+          notificationStore.showNotification('Room code copied to clipboard', 'success')
+        })
+        .catch(err => {
+          console.error('Could not copy text: ', err)
+          notificationStore.showNotification('Failed to copy room code', 'error')
+        })
+    }
+    
+    // Open a new login tab
+    function openLoginTab() {
+      window.open('/login', '_blank')
+    }
+    
     // Navigate to room management
     function navigateToRoom(roomId) {
       router.push(`/admin/room/${roomId}`)
@@ -310,6 +437,11 @@ export default {
         if (success) {
           // Refresh the rooms list
           userRooms.value = await roomStore.loadUserRooms()
+          
+          // Also refresh active rooms list if we're in test mode
+          if (isTestUser.value) {
+            allActiveRooms.value = await roomStore.loadActiveRooms()
+          }
         }
       } catch (error) {
         console.error('Delete room error:', error)
@@ -330,10 +462,17 @@ export default {
       newRoom,
       joinRoomData,
       userRooms,
+      allActiveRooms,
       wordSets,
+      username,
+      isTestUser,
       generateRandomCode,
       createRoom,
       joinRoom,
+      setJoinRoomCode,
+      quickJoinRoom,
+      copyRoomCodeForTesting,
+      openLoginTab,
       navigateToRoom,
       confirmDeleteRoom,
       logout
