@@ -282,7 +282,6 @@ export default {
     const selectedPlayer = ref(null)
     const showImportModal = ref(false)
     const showPasteModal = ref(false)
-    const selectedWordSetId = ref(null)
     const multipleWords = ref('')
     const wordSets = ref([])
     
