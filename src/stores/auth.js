@@ -10,6 +10,7 @@ import {
 
 // Fake Twitch authentication utilities
 const STORAGE_KEY = 'streamBingoUser'
+const USERS_STORAGE_KEY = 'streamBingoUsers'
 
 export const useAuthStore = defineStore('auth', () => {
   // State
@@ -21,6 +22,19 @@ export const useAuthStore = defineStore('auth', () => {
   // Getters
   const isLoggedIn = computed(() => !!user.value)
   const username = computed(() => user.value?.displayName || 'Guest')
+  
+  // Get all test users from storage
+  const testUsers = computed(() => {
+    try {
+      const storedUsers = localStorage.getItem(USERS_STORAGE_KEY)
+      if (storedUsers) {
+        return JSON.parse(storedUsers)
+      }
+    } catch (error) {
+      console.error('Error parsing test users:', error)
+    }
+    return []
+  })
   
   // Actions
   
@@ -37,6 +51,12 @@ export const useAuthStore = defineStore('auth', () => {
       const storedUser = localStorage.getItem(STORAGE_KEY)
       if (storedUser) {
         user.value = JSON.parse(storedUser)
+        
+        // Add this user to the test users list if it's a test user
+        if (user.value.authMethod === 'test') {
+          saveUserToTestUsers(user.value)
+        }
+        
         initialized.value = true
         loading.value = false
         return true
@@ -92,6 +112,28 @@ export const useAuthStore = defineStore('auth', () => {
   }
   
   /**
+   * Save a user to the test users list
+   */
+  function saveUserToTestUsers(userObj) {
+    if (!userObj || userObj.authMethod !== 'test') return
+
+    try {
+      const users = testUsers.value || []
+      
+      // Check if user already exists in the list
+      const existingIndex = users.findIndex(u => u.uid === userObj.uid)
+      
+      if (existingIndex === -1) {
+        // Only add if it doesn't exist
+        users.push(userObj)
+        localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(users))
+      }
+    } catch (error) {
+      console.error('Error saving test user:', error)
+    }
+  }
+  
+  /**
    * Login with a test account (for development)
    */
   function loginWithTestAccount(username = 'TestUser') {
@@ -103,7 +145,8 @@ export const useAuthStore = defineStore('auth', () => {
         uid: 'test-user-' + Date.now(),
         displayName: username,
         email: `${username.toLowerCase()}@example.com`,
-        authMethod: 'test'
+        authMethod: 'test',
+        createdAt: new Date().toISOString()
       }
       
       // Store in localStorage
@@ -112,11 +155,42 @@ export const useAuthStore = defineStore('auth', () => {
       // Update state
       user.value = testUser
       
+      // Add to test users list
+      saveUserToTestUsers(testUser)
+      
       notificationStore.showNotification('Logged in as test user ' + username, 'success')
       return true
     } catch (error) {
       console.error('Test login error:', error)
       notificationStore.showNotification('Test login failed', 'error')
+      return false
+    } finally {
+      loading.value = false
+    }
+  }
+  
+  /**
+   * Login with an existing test user
+   */
+  function loginWithExistingUser(userObj) {
+    loading.value = true
+    
+    try {
+      if (!userObj || !userObj.uid) {
+        throw new Error('Invalid user object')
+      }
+      
+      // Store in localStorage
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(userObj))
+      
+      // Update state
+      user.value = userObj
+      
+      notificationStore.showNotification('Logged in as ' + userObj.displayName, 'success')
+      return true
+    } catch (error) {
+      console.error('Existing user login error:', error)
+      notificationStore.showNotification('Login failed', 'error')
       return false
     } finally {
       loading.value = false
@@ -136,7 +210,8 @@ export const useAuthStore = defineStore('auth', () => {
           uid: 'twitch-user-' + Date.now(),
           displayName: 'TwitchUser',
           authMethod: 'twitch',
-          token: accessToken
+          token: accessToken,
+          createdAt: new Date().toISOString()
         }
         
         // Store in localStorage for persistence
@@ -187,6 +262,21 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
   
+  /**
+   * Clear all test users (for development)
+   */
+  function clearTestUsers() {
+    try {
+      localStorage.removeItem(USERS_STORAGE_KEY)
+      notificationStore.showNotification('All test users cleared', 'success')
+      return true
+    } catch (error) {
+      console.error('Error clearing test users:', error)
+      notificationStore.showNotification('Failed to clear test users', 'error')
+      return false
+    }
+  }
+  
   return {
     // State
     user,
@@ -196,12 +286,16 @@ export const useAuthStore = defineStore('auth', () => {
     // Getters
     isLoggedIn,
     username,
+    testUsers,
     
     // Actions
     initialize,
     loginWithTwitch,
     loginWithTestAccount,
+    loginWithExistingUser,
     processTwitchAuth,
-    logout
+    logout,
+    clearTestUsers,
+    saveUserToTestUsers
   }
 })

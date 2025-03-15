@@ -23,6 +23,41 @@ A Vue.js application for streamers to create and manage interactive bingo games 
   - Live updates across all devices
   - Persistent game state
 
+## Recent Fixes and Improvements
+
+- **Enhanced UI for Admin:**
+  - Pending approvals now shown directly on bingo words with player initials
+  - Show full bingo word content with proper wrapping
+  - Expand player grids directly below player names
+  
+- **Bug Fixes:**
+  - Fixed synchronization between admin and player views for checked/unchecked words
+  - Calling or uncalling a word now updates correctly across all players and the admin UI
+  - Suppressed common Firebase errors in the console for a cleaner development experience
+  - Improved error handling for concurrent updates
+  - Fixed proper tracking of winner status when unchecking words
+
+## How the Game Works
+
+### For Streamers:
+
+1. **Create a Room**: Generate a unique room code and set a grid size (3x3, 4x4, or 5x5).
+2. **Set Up Words**: Add words or phrases that might happen during your stream.
+3. **Start the Game**: Once you have enough words, activate the game so viewers can join.
+4. **Manage the Game**:
+   - Call out words when they happen during the stream (click on them to toggle their status)
+   - Approve or reject viewer marks directly on the bingo words
+   - View player grids by clicking on a player's name
+   - Monitor which players have achieved bingo
+
+### For Viewers:
+
+1. **Join a Room**: Enter the room code provided by the streamer.
+2. **Get a Bingo Card**: Each player gets a unique randomized board.
+3. **Play Along**: Mark cells when the events happen during the stream.
+4. **Get Approved**: The streamer approves your marks if they're valid.
+5. **Win**: Get five in a row (horizontal, vertical, or diagonal) to win!
+
 ## Technologies Used
 
 - Vue.js 3 with Composition API

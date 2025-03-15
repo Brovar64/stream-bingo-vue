@@ -1,5 +1,5 @@
 <template>
-  <div class="card">
+  <div :class="['player-grid-container', { 'compact-mode': compact }]">
     <div class="flex justify-between items-center mb-4">
       <h2 class="text-xl font-semibold">
         {{ playerName }}'s Bingo Grid
@@ -16,7 +16,8 @@
           <div 
             v-for="col in gridSize" 
             :key="`${row-1}_${col-1}`"
-            :class="['bingo-cell', getCellClasses(`${row-1}_${col-1}`)]"
+            :class="['bingo-cell', getCellClasses(`${row-1}_${col-1}`)
+            ]"
           >
             <div class="bingo-cell-content">
               {{ getCellWord(`${row-1}_${col-1}`) }}
@@ -66,6 +67,10 @@ export default {
     isWinner: {
       type: Boolean,
       default: false
+    },
+    compact: {
+      type: Boolean,
+      default: false
     }
   },
   emits: ['close'],
@@ -107,11 +112,23 @@ export default {
 </script>
 
 <style scoped>
+.player-grid-container {
+  @apply bg-background-card rounded-lg p-5 shadow-lg;
+}
+
+.player-grid-container.compact-mode {
+  @apply p-3;
+}
+
 .bingo-grid {
   display: grid;
-  grid-gap: 8px;
+  grid-gap: 4px;
   width: 100%;
   max-width: 600px;
+}
+
+.compact-mode .bingo-grid {
+  grid-gap: 2px;
 }
 
 .bingo-cell {
@@ -122,16 +139,29 @@ export default {
   align-items: center;
   justify-content: center;
   position: relative;
-  font-size: 0.9rem;
   text-align: center;
   padding: 8px;
   font-weight: 500;
+}
+
+.compact-mode .bingo-cell {
+  padding: 4px;
+  font-size: 0.7rem;
 }
 
 .bingo-cell-content {
   width: 100%;
   overflow-wrap: break-word;
   hyphens: auto;
+  word-break: break-word;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.compact-mode .bingo-cell-content {
+  -webkit-line-clamp: 2;
 }
 
 .bingo-cell.marked.approved {
@@ -142,5 +172,13 @@ export default {
 .bingo-cell.marked.pending {
   background-color: rgba(255, 160, 0, 0.2);
   border: 2px dashed theme('colors.warning');
+}
+
+.compact-mode .stats {
+  @apply text-xs;
+}
+
+.compact-mode .stats .text-lg {
+  @apply text-base;
 }
 </style>

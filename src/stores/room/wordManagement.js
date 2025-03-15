@@ -1,6 +1,6 @@
 import { currentRoom, loading, roomWords } from './state'
 import { useNotificationStore } from '@/stores/notification'
-import { doc, updateDoc, arrayUnion, arrayRemove } from 'firebase/firestore'
+import { doc, updateDoc, arrayUnion, arrayRemove, getDoc } from 'firebase/firestore'
 import { db } from '@/firebase'
 
 // Get dependencies
@@ -146,24 +146,43 @@ export async function markWordForAllPlayers(word) {
     
     const roomRef = doc(db, 'rooms', currentRoom.value.id)
     
+    // Always fetch the latest room data from Firestore to ensure we have the most current calledOutWords
+    const roomSnapshot = await getDoc(roomRef)
+    const latestRoomData = roomSnapshot.data()
+    const currentCalledOutWords = latestRoomData?.calledOutWords || []
+    
     // Toggle called out state
-    const isAlreadyCalled = (currentRoom.value.calledOutWords || []).includes(word)
+    const isAlreadyCalled = currentCalledOutWords.includes(word)
     
     if (isAlreadyCalled) {
       // Remove the word from called out words using arrayRemove
       await updateDoc(roomRef, {
         calledOutWords: arrayRemove(word)
       })
+      
+      // Update local state to ensure UI is in sync
+      if (currentRoom.value.calledOutWords) {
+        currentRoom.value.calledOutWords = currentRoom.value.calledOutWords.filter(w => w !== word)
+      }
+      
       notificationStore.showNotification(`"${word}" removed from called words`, 'info')
     } else {
       // Add the word to called out words using arrayUnion
       await updateDoc(roomRef, {
         calledOutWords: arrayUnion(word)
       })
+      
+      // Update local state to ensure UI is in sync
+      if (!currentRoom.value.calledOutWords) {
+        currentRoom.value.calledOutWords = [word]
+      } else if (!currentRoom.value.calledOutWords.includes(word)) {
+        currentRoom.value.calledOutWords.push(word)
+      }
+      
       notificationStore.showNotification(`"${word}" called out!`, 'success')
     }
     
-    // Auto-mark cells in all player grids that contain this word
+    // Auto-mark or unmark cells in all player grids that contain this word
     await autoMarkCellsWithWord(word, !isAlreadyCalled)
     
     return true
@@ -189,10 +208,16 @@ async function autoMarkCellsWithWord(word, marked = true) {
   try {
     const roomRef = doc(db, 'rooms', currentRoom.value.id)
     
-    // Create deep clone of player grids
-    const playerGrids = JSON.parse(JSON.stringify(currentRoom.value.playerGrids))
-    let pendingApprovals = [...(currentRoom.value.pendingApprovals || [])]
+    // Get the latest room data from Firestore
+    const roomSnapshot = await getDoc(roomRef)
+    const latestRoomData = roomSnapshot.data()
+    
+    // Create deep clone of player grids from the latest data
+    const playerGrids = JSON.parse(JSON.stringify(latestRoomData.playerGrids || {}))
+    let pendingApprovals = [...(latestRoomData.pendingApprovals || [])]
     let hasChanges = false
+    let bingoWinners = [...(latestRoomData.bingoWinners || [])]
+    let winnersChanged = false
     
     // For each player grid
     for (const playerName in playerGrids) {
@@ -202,8 +227,8 @@ async function autoMarkCellsWithWord(word, marked = true) {
       for (const cellKey in grid) {
         const cell = grid[cellKey]
         
-        // If the cell contains the target word
-        if (cell.word === word) {
+        // If the cell contains the target word and is not "FREE"
+        if (cell.word === word && cell.word !== "FREE") {
           if (marked) {
             // Mark and auto-approve the cell
             cell.marked = true
@@ -223,62 +248,63 @@ async function autoMarkCellsWithWord(word, marked = true) {
           hasChanges = true
         }
       }
+      
+      // Check if player's bingo status has changed
+      const hadBingo = bingoWinners.includes(playerName)
+      const hasBingoNow = checkForBingo(grid, latestRoomData.gridSize)
+      
+      // Add player to winners if they now have bingo
+      if (!hadBingo && hasBingoNow) {
+        bingoWinners.push(playerName)
+        winnersChanged = true
+        notificationStore.showNotification(`${playerName} has BINGO!`, 'success')
+      }
+      // Remove player from winners if they no longer have bingo
+      else if (hadBingo && !hasBingoNow) {
+        bingoWinners = bingoWinners.filter(winner => winner !== playerName)
+        winnersChanged = true
+      }
     }
     
     if (hasChanges) {
-      // Update player grids and pending approvals
-      await updateDoc(roomRef, {
-        playerGrids,
-        pendingApprovals
-      })
-      
-      // Check for any new bingos
-      await checkForNewBingos(playerGrids)
-      
-      return true
+      try {
+        // Update player grids and pending approvals
+        const updateData = {
+          playerGrids,
+          pendingApprovals
+        }
+        
+        // Only update winners if there were changes
+        if (winnersChanged) {
+          updateData.bingoWinners = bingoWinners
+        }
+        
+        await updateDoc(roomRef, updateData)
+        
+        // Update local state to match the changes
+        currentRoom.value.playerGrids = playerGrids
+        currentRoom.value.pendingApprovals = pendingApprovals
+        if (winnersChanged) {
+          currentRoom.value.bingoWinners = bingoWinners
+        }
+        
+        return true
+      } catch (error) {
+        console.error('Error updating player grids:', error)
+        
+        // Try again with smaller update if there was an error
+        if (error.message && error.message.includes('Document was mutated')) {
+          console.log('Retrying update with current data...')
+          setTimeout(() => autoMarkCellsWithWord(word, marked), 1000)
+        }
+        return false
+      }
     }
     
     return false
   } catch (error) {
     console.error('Error auto-marking cells:', error)
     notificationStore.showNotification(`Error updating player grids: ${error.message}`, 'error')
-    return false
-  }
-}
-
-/**
- * Check if any players have achieved bingo after auto-marking
- * @param {Object} playerGrids - All player grids
- */
-async function checkForNewBingos(playerGrids) {
-  if (!currentRoom.value) return false
-  
-  try {
-    const roomRef = doc(db, 'rooms', currentRoom.value.id)
-    let newWinners = false
-    
-    // For each player grid
-    for (const playerName in playerGrids) {
-      // Skip players who already have bingo
-      if (currentRoom.value.bingoWinners?.includes(playerName)) continue
-      
-      const playerGrid = playerGrids[playerName]
-      const hasBingo = checkForBingo(playerGrid, currentRoom.value.gridSize)
-      
-      if (hasBingo && !currentRoom.value.bingoWinners?.includes(playerName)) {
-        // Use arrayUnion to safely add the winner to bingoWinners
-        await updateDoc(roomRef, { 
-          bingoWinners: arrayUnion(playerName) 
-        })
-        
-        newWinners = true
-        notificationStore.showNotification(`${playerName} has BINGO!`, 'success')
-      }
-    }
-    
-    return newWinners
-  } catch (error) {
-    console.error('Error checking for bingos:', error)
     return false
   }
 }
