@@ -169,6 +169,37 @@ export async function loadUserRooms() {
 }
 
 /**
+ * Load all active rooms (for testing purposes)
+ * This allows test users to easily join any active room
+ */
+export async function loadActiveRooms() {
+  loading.value = true
+  
+  try {
+    // Query active rooms with status = 'active'
+    const roomsRef = collection(db, 'rooms')
+    const q = query(roomsRef, where('status', '==', 'active'))
+    const snapshot = await getDocs(q)
+    
+    // Convert snapshot to array
+    const rooms = []
+    snapshot.forEach((doc) => {
+      rooms.push({
+        id: doc.id,
+        ...doc.data()
+      })
+    })
+    
+    return rooms
+  } catch (error) {
+    console.error('Error loading active rooms:', error)
+    return []
+  } finally {
+    loading.value = false
+  }
+}
+
+/**
  * Delete a room by ID
  * @param {string} roomId - ID of the room to delete
  */
