@@ -625,14 +625,18 @@ export default {
     
     function saveWordSets() {
       localStorage.setItem('bingoWordSets', JSON.stringify(wordSets.value))
+      // Ensure updates are reflected in the dashboard
+      localStorage.setItem('bingoWordSetsUpdated', new Date().toISOString())
     }
     
     function savePlayerPunishmentSets() {
       localStorage.setItem('bingoPlayerPunishmentSets', JSON.stringify(playerPunishmentSets.value))
+      localStorage.setItem('punishmentSetsUpdated', new Date().toISOString())
     }
     
     function saveCreatorPunishmentSets() {
       localStorage.setItem('bingoCreatorPunishmentSets', JSON.stringify(creatorPunishmentSets.value))
+      localStorage.setItem('punishmentSetsUpdated', new Date().toISOString())
     }
     
     // File import handling
@@ -642,7 +646,8 @@ export default {
       
       const reader = new FileReader()
       reader.onload = e => {
-        if (creatingType.value === 'word' || viewingType.value === 'word') {
+        if ((showCreateModal.value && creatingType.value === 'word') || 
+            (showViewModal.value && viewingType.value === 'word')) {
           wordInput.value = e.target.result
         } else {
           punishmentInput.value = e.target.result
@@ -652,6 +657,9 @@ export default {
         notificationStore.showNotification('Failed to read file', 'error')
       }
       reader.readAsText(file)
+      
+      // Reset file input to allow selecting the same file again
+      event.target.value = ''
     }
     
     // Create operations
@@ -728,6 +736,16 @@ export default {
       wordInput.value = ''
       punishmentInput.value = ''
       showCreateModal.value = false
+      
+      // Switch to manage tab to show the newly created set
+      activeTab.value = 'manage'
+      if (creatingType.value === 'word') {
+        manageTab.value = 'words'
+      } else if (creatingType.value === 'playerPunishment') {
+        manageTab.value = 'playerPunishments'
+      } else {
+        manageTab.value = 'creatorPunishments'
+      }
     }
     
     // View operations
