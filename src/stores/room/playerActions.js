@@ -1,6 +1,6 @@
 import { currentRoom, loading } from './state'
 import { useNotificationStore } from '@/stores/notification'
-import { doc, getDoc, updateDoc, arrayUnion, Timestamp, serverTimestamp } from 'firebase/firestore'
+import { doc, getDoc, updateDoc, arrayUnion, Timestamp } from 'firebase/firestore'
 import { db } from '@/firebase'
 import { loadRoom } from './roomCrud'
 
