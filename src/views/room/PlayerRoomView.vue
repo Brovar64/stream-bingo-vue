@@ -12,8 +12,8 @@
       <div class="text-error mb-4 text-5xl">⚠️</div>
       <h2 class="text-xl font-semibold mb-2">Error Loading Game</h2>
       <p class="text-gray-400 mb-6">{{ loadErrorMessage }}</p>
-      <div class="flex justify-center">
-        <button @click="retryLoading" class="btn bg-primary hover:bg-primary-dark text-white mr-4">
+      <div class="flex justify-center space-x-4">
+        <button @click="retryLoading" class="btn bg-primary hover:bg-primary-dark text-white">
           Retry
         </button>
         <router-link to="/dashboard" class="btn bg-background-lighter hover:bg-gray-700 text-white">
@@ -87,13 +87,17 @@
           <p class="text-gray-300">Congratulations on achieving bingo!</p>
         </div>
         
-        <div v-if="!hasPlayerGrid" class="text-center py-8">
+        <div v-if="loadingPlayerGrid" class="text-center py-8">
           <div class="spinner mx-auto mb-4"></div>
           <p class="text-gray-400 mb-3">Your bingo board is being prepared...</p>
           <p class="text-sm text-gray-500">This may take a few seconds. If it doesn't appear soon, try refreshing the page.</p>
+        </div>
+        
+        <div v-else-if="!hasValidPlayerGrid" class="text-center py-8">
+          <p class="text-gray-400 mb-6">We couldn't load your bingo board. Please try reloading it.</p>
           <button 
             @click="loadPlayerGrid" 
-            class="btn bg-primary hover:bg-primary-dark text-white mt-4"
+            class="btn bg-primary hover:bg-primary-dark text-white"
           >
             Reload Board
           </button>
@@ -177,11 +181,18 @@ export default {
     const loading = ref(true)
     const loadError = ref(false)
     const loadErrorMessage = ref('')
+    const loadingPlayerGrid = ref(false)
     const boardLoadAttempts = ref(0)
+    
+    console.log(`[PLAYER ROOM] Initializing with room ID: ${roomId}`)
     
     // Computed properties
     const roomData = computed(() => roomStore.currentRoom)
-    const isRoomActive = computed(() => roomStore.isRoomActive)
+    const isRoomActive = computed(() => {
+      const active = roomData.value?.status === 'active'
+      console.log(`[PLAYER ROOM] Room active status: ${active}`)
+      return active
+    })
     const gridSize = computed(() => roomData.value?.gridSize || 5)
     const username = computed(() => authStore.username)
     
@@ -191,10 +202,16 @@ export default {
       return roomData.value.playerGrids[username.value] || null
     })
     
-    // Updated: explicit check if player grid exists and has data
-    const hasPlayerGrid = computed(() => {
-      if (!playerGrid.value) return false
-      return Object.keys(playerGrid.value).length > 0
+    // Check if the player grid has data
+    const hasValidPlayerGrid = computed(() => {
+      const hasGrid = playerGrid.value && Object.keys(playerGrid.value).length > 0
+      console.log(`[PLAYER ROOM] Has valid player grid: ${hasGrid}`)
+      
+      if (playerGrid.value) {
+        console.log(`[PLAYER ROOM] Player grid keys: ${Object.keys(playerGrid.value).length}`)
+      }
+      
+      return hasGrid
     })
     
     // Check if player has won
@@ -219,72 +236,78 @@ export default {
       return Object.values(playerGrid.value).filter(cell => cell.marked && !cell.approved).length
     })
     
-    // Watch for player grid changes
-    watch(() => playerGrid.value, (newGrid) => {
-      if (newGrid && Object.keys(newGrid).length > 0) {
-        // Player grid loaded successfully
-        loadError.value = false
-      } else if (isRoomActive.value && boardLoadAttempts.value > 0) {
-        // If room is active but no grid found after load attempts
-        if (boardLoadAttempts.value >= 3) {
-          loadError.value = true
-          loadErrorMessage.value = 'Could not load your bingo board. The admin may need to reset the game.'
-        }
-      }
-    })
-    
-    // Watch for room data changes to detect errors
-    watch(() => roomData.value, (newRoomData) => {
-      if (!newRoomData && boardLoadAttempts.value > 0) {
-        loadError.value = true
-        loadErrorMessage.value = 'Error loading room data. Please try again.'
+    // Watch for player grid and room status changes
+    watch(() => [playerGrid.value, roomData.value?.status], ([newGrid, newStatus]) => {
+      console.log(`[PLAYER ROOM] Watch triggered - grid changed or status changed to: ${newStatus}`)
+      
+      if (newStatus === 'active' && !loadingPlayerGrid.value && !hasValidPlayerGrid.value) {
+        console.log('[PLAYER ROOM] Room is active but no valid grid, triggering grid load')
+        loadPlayerGrid()
       }
     })
     
     // Load room data on component mount
     onMounted(async () => {
+      console.log('[PLAYER ROOM] Component mounted')
       loading.value = true
       
       try {
-        // Always use the current logged-in username
+        // Check authentication
         if (!authStore.username) {
-          // If not logged in, redirect to dashboard
+          console.log('[PLAYER ROOM] No username found, redirecting to dashboard')
           notificationStore.showNotification('You must be logged in to join a room', 'error')
           router.push('/dashboard')
           return
         }
         
-        // First join the room with the current username
-        const joinResult = await roomStore.joinRoom(username.value, roomId)
+        console.log(`[PLAYER ROOM] Starting initial load for room ${roomId}`)
         
-        if (!joinResult) {
-          loadError.value = true
-          loadErrorMessage.value = 'Failed to join the room. Please try again.'
-          loading.value = false
-          return
-        }
-        
-        // Start checking for player grid if room is active
-        if (isRoomActive.value) {
-          await loadPlayerGrid()
-        }
+        // Attempt to load the room data
+        await loadInitialRoomData()
         
         loading.value = false
       } catch (error) {
-        console.error('Error loading room:', error)
+        console.error('[PLAYER ROOM] Error during initial load:', error)
         loadError.value = true
         loadErrorMessage.value = error.message || 'Error loading room'
         loading.value = false
       }
     })
     
-    // Load room data
-    async function loadRoom() {
+    // Initial room data loading
+    async function loadInitialRoomData() {
+      console.log('[PLAYER ROOM] loadInitialRoomData called')
+      
       try {
+        // First, load the room to check if it exists
         await roomStore.loadRoom(roomId)
+        
+        if (!roomData.value) {
+          console.log('[PLAYER ROOM] Room not found in initial load')
+          throw new Error(`Room ${roomId} not found`)
+        }
+        
+        console.log(`[PLAYER ROOM] Room loaded, status: ${roomData.value.status}`)
+        
+        // Now join the room with the current username
+        const joinResult = await roomStore.joinRoom(username.value, roomId)
+        
+        if (!joinResult || !joinResult.success) {
+          console.log('[PLAYER ROOM] Failed to join room')
+          throw new Error('Failed to join the room. Please try again.')
+        }
+        
+        console.log('[PLAYER ROOM] Successfully joined room')
+        
+        // If room is active, start loading the player grid
+        if (isRoomActive.value) {
+          console.log('[PLAYER ROOM] Room is active, loading player grid')
+          await loadPlayerGrid()
+        }
+        
         return true
       } catch (error) {
-        console.error('Error loading room:', error)
+        console.error('[PLAYER ROOM] Error in loadInitialRoomData:', error)
         loadError.value = true
         loadErrorMessage.value = error.message || 'Failed to load room data'
         return false
@@ -293,83 +316,124 @@ export default {
     
     // Try to load player grid
     async function loadPlayerGrid() {
-      boardLoadAttempts.value++
+      if (loadingPlayerGrid.value) return false
       
-      if (!username.value || !roomId) return false
+      console.log('[PLAYER ROOM] loadPlayerGrid called, attempt #', boardLoadAttempts.value + 1)
+      boardLoadAttempts.value++
+      loadingPlayerGrid.value = true
       
       try {
-        // First ensure we have the latest room data
-        await roomStore.loadRoom(roomId)
-        
-        // If we still don't have a player grid after room load
-        if (isRoomActive.value && (!playerGrid.value || Object.keys(playerGrid.value).length === 0)) {
-          // Re-join the room to ensure player is registered
-          await roomStore.joinRoom(username.value, roomId)
-          
-          // Try loading the room one more time
-          await roomStore.loadRoom(roomId)
-          
-          // If still no grid after 3 attempts, show error
-          if (boardLoadAttempts.value >= 3 && (!playerGrid.value || Object.keys(playerGrid.value).length === 0)) {
-            loadError.value = true
-            loadErrorMessage.value = 'Unable to load your bingo board. Please try again later.'
-          }
+        if (!username.value || !roomId) {
+          console.log('[PLAYER ROOM] Missing username or roomId for grid load')
+          loadingPlayerGrid.value = false
+          return false
         }
         
-        return true
+        // Reload the room to get fresh data
+        console.log('[PLAYER ROOM] Reloading room data for grid')
+        await roomStore.loadRoom(roomId)
+        
+        // Force a short wait to make sure data is loaded
+        await new Promise(resolve => setTimeout(resolve, 500))
+        
+        // Check if we have a grid now
+        if (hasValidPlayerGrid.value) {
+          console.log('[PLAYER ROOM] Successfully loaded player grid')
+          loadingPlayerGrid.value = false
+          return true
+        }
+        
+        console.log('[PLAYER ROOM] Grid not loaded yet, trying to join again')
+        
+        // Try joining again if we don't have a grid
+        await roomStore.joinRoom(username.value, roomId)
+        
+        // Wait again before checking
+        await new Promise(resolve => setTimeout(resolve, 500))
+        
+        // Reload once more
+        await roomStore.loadRoom(roomId)
+        
+        // After multiple attempts with no success, show error
+        if (boardLoadAttempts.value >= 3 && !hasValidPlayerGrid.value) {
+          console.log('[PLAYER ROOM] Failed to load grid after multiple attempts')
+          loadError.value = true
+          loadErrorMessage.value = 'Unable to load your bingo board. The game may not be properly set up.'
+          loadingPlayerGrid.value = false
+          return false
+        }
+        
+        loadingPlayerGrid.value = false
+        return hasValidPlayerGrid.value
       } catch (error) {
-        console.error('Error loading player grid:', error)
+        console.error('[PLAYER ROOM] Error loading player grid:', error)
         if (boardLoadAttempts.value >= 3) {
           loadError.value = true
           loadErrorMessage.value = error.message || 'Failed to load your bingo board'
         }
+        loadingPlayerGrid.value = false
         return false
       }
     }
     
     // Retry loading room and player grid
     async function retryLoading() {
+      console.log('[PLAYER ROOM] retryLoading called')
       loadError.value = false
       loading.value = true
       boardLoadAttempts.value = 0
       
-      await loadRoom()
-      
-      if (isRoomActive.value) {
-        await loadPlayerGrid()
+      try {
+        await loadInitialRoomData()
+        
+        if (isRoomActive.value && !hasValidPlayerGrid.value) {
+          await loadPlayerGrid()
+        }
+        
+        loading.value = false
+      } catch (error) {
+        console.error('[PLAYER ROOM] Error in retryLoading:', error)
+        loadError.value = true
+        loadErrorMessage.value = error.message || 'Error reloading room'
+        loading.value = false
       }
-      
-      loading.value = false
     }
     
     // Cleanup on component unmount
     onUnmounted(() => {
+      console.log('[PLAYER ROOM] Component unmounting, cleaning up')
       roomStore.cleanup()
     })
     
-    // Methods
-    
     // Mark a cell
     async function markCell(row, col) {
-      if (!roomData.value || !isRoomActive.value || !username.value) return
+      if (!roomData.value || !isRoomActive.value || !username.value || !hasValidPlayerGrid.value) {
+        console.log('[PLAYER ROOM] Cannot mark cell - missing data or inactive room')
+        return
+      }
       
       // Get the cell
       const cellKey = `${row}_${col}`
       const cell = playerGrid.value?.[cellKey]
       
-      if (!cell) return
+      if (!cell) {
+        console.log(`[PLAYER ROOM] Cell not found: ${cellKey}`)
+        return
+      }
       
       // Don't allow marking if already marked
       if (cell.marked) {
+        console.log(`[PLAYER ROOM] Cell ${cellKey} is already marked`)
         notificationStore.showNotification('This cell is already marked', 'info')
         return
       }
       
       try {
+        console.log(`[PLAYER ROOM] Marking cell ${cellKey}`)
         // Mark the cell
         await roomStore.markCell(username.value, row, col)
       } catch (error) {
-        console.error('Error marking cell:', error)
+        console.error(`[PLAYER ROOM] Error marking cell ${cellKey}:`, error)
         notificationStore.showNotification(`Error marking cell: ${error.message}`, 'error')
       }
     }
@@ -413,12 +477,13 @@ export default {
     
     return {
       loading,
+      loadingPlayerGrid,
       username,
       roomData,
       isRoomActive,
       gridSize,
       playerGrid,
-      hasPlayerGrid,
+      hasValidPlayerGrid,
       hasWon,
       markedCellsCount,
       approvedCellsCount,
