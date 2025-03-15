@@ -76,6 +76,8 @@
 </template>
 
 <script>
+import { watch, onMounted } from 'vue';
+
 export default {
   name: 'CreateSetModal',
   
@@ -147,9 +149,6 @@ export default {
   watch: {
     visible(newValue) {
       console.log('CreateSetModal: visible prop changed to', newValue);
-      if (newValue) {
-        console.log('CreateSetModal: Modal is now visible with type:', this.type, 'and name:', this.setName);
-      }
     }
   },
   
