@@ -9,7 +9,7 @@ const AdminRoomView = () => import('@/views/room/AdminRoomView.vue')
 const PlayerRoomView = () => import('@/views/room/PlayerRoomView.vue')
 const VueFirePlayerView = () => import('@/views/room/VueFirePlayerView.vue')
 const WordSetsView = () => import('@/views/WordSetsView.vue')
-const SetDebugView = () => import('@/views/SetDebugView.vue')
+const PunishmentSetsView = () => import('@/views/PunishmentSetsView.vue')
 const NotFoundView = () => import('@/views/NotFoundView.vue')
 
 // Routes configuration
@@ -54,10 +54,18 @@ const routes = [
     meta: { requiresAuth: true }
   },
   {
-    path: '/debug/modal',
-    name: 'modal-debug',
-    component: SetDebugView,
-    meta: { public: true }
+    path: '/punishment-sets/player',
+    name: 'player-punishment-sets',
+    component: PunishmentSetsView,
+    props: { type: 'Player' },
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/punishment-sets/creator',
+    name: 'creator-punishment-sets',
+    component: PunishmentSetsView,
+    props: { type: 'Creator' },
+    meta: { requiresAuth: true }
   },
   {
     path: '/auth-callback',
