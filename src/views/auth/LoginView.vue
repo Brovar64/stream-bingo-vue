@@ -17,17 +17,57 @@
             </svg>
             Login with Twitch
           </button>
+
           <div class="relative flex py-3 items-center">
             <div class="flex-grow border-t border-gray-700"></div>
             <span class="flex-shrink mx-3 text-gray-500">or</span>
             <div class="flex-grow border-t border-gray-700"></div>
           </div>
+
+          <!-- Admin Test User Button -->
           <button
-            @click="loginAsTestUser"
+            @click="loginAsTestUser('Admin')"
             class="w-full py-3 px-4 bg-background-lighter hover:bg-gray-700 text-white rounded-lg transition-colors"
           >
-            Login as Test User
+            Login as Admin (Test)
           </button>
+          
+          <!-- Test Players Section -->
+          <div class="mt-6">
+            <h3 class="text-lg font-medium mb-3">Test as Player</h3>
+            <p class="text-sm text-gray-400 mb-4">
+              Enter a name below to login as a test player or use a preset:
+            </p>
+            
+            <!-- Custom Username Input -->
+            <div class="flex mb-3">
+              <input 
+                v-model="customUsername" 
+                placeholder="Enter player name" 
+                class="flex-grow form-control"
+                @keyup.enter="loginAsTestUser(customUsername)"
+              />
+              <button 
+                @click="loginAsTestUser(customUsername)"
+                :disabled="!customUsername.trim()"
+                :class="['ml-2 btn', customUsername.trim() ? 'btn-primary' : 'bg-gray-600 cursor-not-allowed']"
+              >
+                Login
+              </button>
+            </div>
+            
+            <!-- Preset Test Players -->
+            <div class="grid grid-cols-2 gap-2">
+              <button
+                v-for="player in presetPlayers"
+                :key="player"
+                @click="loginAsTestUser(player)"
+                class="py-2 px-3 bg-background-lighter hover:bg-gray-700 text-white rounded-lg transition-colors text-sm"
+              >
+                Login as {{ player }}
+              </button>
+            </div>
+          </div>
         </div>
         
         <div class="mt-8">
@@ -47,6 +87,7 @@
 </template>
 
 <script>
+import { ref } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useNotificationStore } from '@/stores/notification'
@@ -59,6 +100,10 @@ export default {
     const authStore = useAuthStore()
     const notificationStore = useNotificationStore()
     
+    // Reactive state
+    const customUsername = ref('')
+    const presetPlayers = ['Player1', 'Player2', 'Viewer', 'StreamFan']
+    
     // Check for redirect param
     const redirect = route.query.redirect || '/dashboard'
     
@@ -67,15 +112,26 @@ export default {
       authStore.loginWithTwitch()
     }
     
-    function loginAsTestUser() {
-      authStore.loginWithTestAccount('TestUser')
-      notificationStore.showNotification('Logged in as test user', 'success')
+    function loginAsTestUser(username) {
+      // Validate the username
+      if (!username || !username.trim()) {
+        notificationStore.showNotification('Please enter a valid username', 'error')
+        return
+      }
+      
+      // Use the provided username or default to 'TestUser'
+      const cleanUsername = username.trim()
+      
+      authStore.loginWithTestAccount(cleanUsername)
+      notificationStore.showNotification(`Logged in as ${cleanUsername}`, 'success')
       
       // Navigate to redirect destination or dashboard
       router.push(redirect)
     }
     
     return {
+      customUsername,
+      presetPlayers,
       loginWithTwitch,
       loginAsTestUser
     }
