@@ -1,6 +1,6 @@
 import { currentRoom, loading } from './state'
 import { useNotificationStore } from '@/stores/notification'
-import { doc, getDoc, updateDoc, arrayUnion, Timestamp } from 'firebase/firestore'
+import { doc, getDoc, updateDoc, arrayUnion, Timestamp, serverTimestamp } from 'firebase/firestore'
 import { db } from '@/firebase'
 import { loadRoom } from './roomCrud'
 
@@ -51,10 +51,10 @@ export async function joinRoom(nickname, roomId) {
     const playerExists = (roomData.players || []).some(player => player.nickname === nickname)
     
     if (!playerExists) {
-      // Create player data - Use client-side timestamp instead of serverTimestamp
+      // Create player data - Use client-side timestamp to safely work with arrays
       const playerData = {
         nickname: nickname,
-        joinedAt: Timestamp.now() // Use client-side timestamp to avoid Firebase array issues
+        joinedAt: Timestamp.now()
       }
       
       // Update room using arrayUnion to safely add to the array
@@ -146,23 +146,11 @@ export async function markCell(playerName, row, col) {
       timestamp: Timestamp.now() // Use client-side timestamp
     }
     
-    // Check if approval already exists (to avoid duplicates)
-    const approvalExists = (currentRoom.value.pendingApprovals || []).some(
-      approval => approval.playerName === playerName && approval.row === row && approval.col === col
-    )
-    
     // Update room data
-    if (!approvalExists) {
-      await updateDoc(roomRef, {
-        playerGrids: playerGrids,
-        pendingApprovals: arrayUnion(approvalData) // Use arrayUnion for safe array updates
-      })
-    } else {
-      // Just update the grid if approval already exists
-      await updateDoc(roomRef, {
-        playerGrids: playerGrids
-      })
-    }
+    await updateDoc(roomRef, {
+      playerGrids: playerGrids,
+      pendingApprovals: arrayUnion(approvalData) // Use arrayUnion for safe array updates
+    })
     
     notificationStore.showNotification('Cell marked! Waiting for admin approval.', 'success')
     return true
