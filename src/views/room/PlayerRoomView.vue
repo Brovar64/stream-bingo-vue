@@ -52,7 +52,7 @@
             <h1 class="title">Bingo: {{ roomData.id }}</h1>
             <span class="status-badge bg-success">Active</span>
           </div>
-          <p class="subtitle">Playing as: {{ nickname }}</p>
+          <p class="subtitle">Playing as: {{ username }}</p>
         </div>
         
         <div class="flex gap-3 mt-4 md:mt-0">
@@ -175,7 +175,6 @@ export default {
     
     // State
     const loading = ref(true)
-    const nickname = ref('')
     const loadError = ref(false)
     const loadErrorMessage = ref('')
     const boardLoadAttempts = ref(0)
@@ -184,17 +183,18 @@ export default {
     const roomData = computed(() => roomStore.currentRoom)
     const isRoomActive = computed(() => roomStore.isRoomActive)
     const gridSize = computed(() => roomData.value?.gridSize || 5)
+    const username = computed(() => authStore.username)
     
     // Get the player's grid
     const playerGrid = computed(() => {
-      if (!roomData.value?.playerGrids || !nickname.value) return null
-      return roomData.value.playerGrids[nickname.value] || null
+      if (!roomData.value?.playerGrids || !username.value) return null
+      return roomData.value.playerGrids[username.value] || null
     })
     
     // Check if player has won
     const hasWon = computed(() => {
       if (!roomData.value?.bingoWinners) return false
-      return roomData.value.bingoWinners.includes(nickname.value)
+      return roomData.value.bingoWinners.includes(username.value)
     })
     
     // Cell stats
@@ -240,42 +240,19 @@ export default {
       loading.value = true
       
       try {
-        // Try to get nickname from session storage first
-        let storedNickname = sessionStorage.getItem(`room_${roomId}_nickname`)
-        
-        // If not in session storage, use the logged-in username as default
-        if (!storedNickname && authStore.username) {
-          storedNickname = authStore.username
+        // Always use the current logged-in username
+        if (!authStore.username) {
+          // If not logged in, redirect to dashboard
+          notificationStore.showNotification('You must be logged in to join a room', 'error')
+          router.push('/dashboard')
+          return
         }
         
-        if (storedNickname) {
-          nickname.value = storedNickname
-          await loadRoom()
-        } else {
-          // Prompt for nickname only if we really don't have one
-          const userNickname = prompt('Enter your nickname to join the game:')
-          
-          if (!userNickname) {
-            // If user cancels, go back to dashboard
-            notificationStore.showNotification('Nickname is required to join a room', 'error')
-            router.push('/dashboard')
-            return
-          }
-          
-          nickname.value = userNickname
-          
-          // Join the room with the nickname
-          const joinResult = await roomStore.joinRoom(userNickname, roomId)
-          
-          if (!joinResult) {
-            // If joining fails, go back to dashboard
-            router.push('/dashboard')
-            return
-          }
-          
-          // Save nickname to session storage
-          sessionStorage.setItem(`room_${roomId}_nickname`, userNickname)
-        }
+        // First join the room with the current username
+        await roomStore.joinRoom(username.value, roomId)
+        
+        // Then load the room data
+        await loadRoom()
         
         // Start checking for player grid if room is active
         if (isRoomActive.value && !playerGrid.value) {
@@ -308,7 +285,7 @@ export default {
     async function loadPlayerGrid() {
       boardLoadAttempts.value++
       
-      if (!nickname.value || !roomId) return false
+      if (!username.value || !roomId) return false
       
       try {
         // First ensure we have the latest room data
@@ -317,7 +294,7 @@ export default {
         // If we still don't have a player grid after room load
         if (isRoomActive.value && !playerGrid.value) {
           // Re-join the room to ensure player is registered
-          await roomStore.joinRoom(nickname.value, roomId)
+          await roomStore.joinRoom(username.value, roomId)
           
           // If still no grid after 3 attempts, show error
           if (boardLoadAttempts.value >= 3 && !playerGrid.value) {
@@ -360,7 +337,7 @@ export default {
     
     // Mark a cell
     async function markCell(row, col) {
-      if (!roomData.value || !isRoomActive.value || !nickname.value) return
+      if (!roomData.value || !isRoomActive.value || !username.value) return
       
       // Get the cell
       const cellKey = `${row}_${col}`
@@ -376,7 +353,7 @@ export default {
       
       try {
         // Mark the cell
-        await roomStore.markCell(nickname.value, row, col)
+        await roomStore.markCell(username.value, row, col)
       } catch (error) {
         console.error('Error marking cell:', error)
         notificationStore.showNotification(`Error marking cell: ${error.message}`, 'error')
@@ -422,7 +399,7 @@ export default {
     
     return {
       loading,
-      nickname,
+      username,
       roomData,
       isRoomActive,
       gridSize,
