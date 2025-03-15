@@ -1,6 +1,6 @@
 import { currentRoom, loading, requiredWords, roomWords } from './state'
 import { useNotificationStore } from '@/stores/notification'
-import { doc, updateDoc, serverTimestamp } from 'firebase/firestore'
+import { doc, updateDoc, serverTimestamp, Timestamp, arrayUnion } from 'firebase/firestore'
 import { db } from '@/firebase'
 import { checkForBingo } from './wordManagement'
 
@@ -32,7 +32,7 @@ export async function startGame() {
     const roomRef = doc(db, 'rooms', currentRoom.value.id)
     await updateDoc(roomRef, {
       status: 'active',
-      startedAt: serverTimestamp(),
+      startedAt: serverTimestamp(), // This is fine as it's not in an array
       calledOutWords: [] // Initialize called out words array
     })
     
@@ -209,11 +209,11 @@ export async function approvePlayerMark(approvalIndex) {
         if (hasBingo) {
           notificationStore.showNotification(`${playerName} has BINGO!`, 'success')
           
-          // Update bingo winners
-          let winners = [...(currentRoom.value.bingoWinners || [])]
-          if (!winners.includes(playerName)) {
-            winners.push(playerName)
-            await updateDoc(roomRef, { bingoWinners: winners })
+          // Update bingo winners using arrayUnion
+          if (!currentRoom.value.bingoWinners?.includes(playerName)) {
+            await updateDoc(roomRef, { 
+              bingoWinners: arrayUnion(playerName)
+            })
           }
         }
         
