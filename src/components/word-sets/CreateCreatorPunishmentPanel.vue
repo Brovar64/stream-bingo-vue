@@ -27,27 +27,27 @@ export default {
   name: 'CreateCreatorPunishmentPanel',
   
   props: {
-    value: {
+    modelValue: {
       type: String,
       default: ''
     }
   },
   
-  emits: ['update:value', 'create'],
+  emits: ['update:modelValue', 'create'],
   
   data() {
     return {
-      setName: this.value
+      setName: this.modelValue
     }
   },
   
   watch: {
-    value(newVal) {
+    modelValue(newVal) {
       this.setName = newVal;
     },
     
     setName(newVal) {
-      this.$emit('update:value', newVal);
+      this.$emit('update:modelValue', newVal);
     }
   },
   
