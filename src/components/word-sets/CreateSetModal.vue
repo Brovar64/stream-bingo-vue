@@ -3,7 +3,7 @@
     <div class="bg-background-card rounded-lg shadow-lg w-full max-w-3xl p-6 max-h-screen overflow-y-auto">
       <div class="flex justify-between items-center mb-6">
         <h2 class="text-2xl font-bold">
-          {{ typeLabel }}: {{ setName }}
+          {{ typeLabel }}
         </h2>
         <button @click="closeModal" class="text-gray-400 hover:text-white text-xl">
           ✕
@@ -95,7 +95,7 @@ export default {
     }
   },
   
-  emits: ['update:visible', 'save', 'cancel'],
+  emits: ['update:visible', 'save', 'cancel', 'file-error'],
   
   data() {
     return {
@@ -108,13 +108,13 @@ export default {
     typeLabel() {
       switch (this.type) {
         case 'word':
-          return 'Create Word Set';
+          return `Create Word Set: ${this.setName}`;
         case 'playerPunishment':
-          return 'Create Player Punishment Set';
+          return `Create Player Punishment Set: ${this.setName}`;
         case 'creatorPunishment':
-          return 'Create Creator Punishment Set';
+          return `Create Creator Punishment Set: ${this.setName}`;
         default:
-          return 'Create Set';
+          return `Create Set: ${this.setName}`;
       }
     },
     
@@ -144,8 +144,18 @@ export default {
     }
   },
   
+  watch: {
+    visible(newValue) {
+      console.log('CreateSetModal: visible prop changed to', newValue);
+      if (newValue) {
+        console.log('CreateSetModal: Modal is now visible with type:', this.type, 'and name:', this.setName);
+      }
+    }
+  },
+  
   methods: {
     closeModal() {
+      console.log('CreateSetModal: closeModal called');
       this.wordInput = '';
       this.punishmentInput = '';
       this.$emit('update:visible', false);
@@ -153,6 +163,7 @@ export default {
     },
     
     saveSet() {
+      console.log('CreateSetModal: saveSet called');
       if (this.type === 'word') {
         if (this.parsedWords.length === 0) return;
         this.$emit('save', {
@@ -194,6 +205,10 @@ export default {
       // Reset file input to allow selecting the same file again
       event.target.value = '';
     }
+  },
+  
+  mounted() {
+    console.log('CreateSetModal: Component mounted, visible =', this.visible);
   }
 }
 </script>
