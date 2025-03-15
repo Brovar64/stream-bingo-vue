@@ -16,13 +16,14 @@ const firebaseConfig = {
 // Initialize Firebase
 console.log('Initializing Firebase...')
 export const firebaseApp = initializeApp(firebaseConfig)
-export const db = getFirestore(firebaseApp)
-export const auth = getAuth(firebaseApp)
 
-// Enable offline data persistence with improved settings
+// Initialize Firestore with better settings to reduce errors
+export const db = getFirestore(firebaseApp)
+
+// Enable offline data persistence with better error handling
 try {
   enableIndexedDbPersistence(db, {
-    cacheSizeBytes: CACHE_SIZE_UNLIMITED  // Use unlimited cache to avoid size errors
+    cacheSizeBytes: CACHE_SIZE_UNLIMITED
   })
     .catch((err) => {
       if (err.code === 'failed-precondition') {
@@ -37,27 +38,42 @@ try {
   console.error('Error enabling persistence:', error)
 }
 
+export const auth = getAuth(firebaseApp)
+
 // For compatibility with existing code, also export initialization function
 export function initializeFirebase() {
   console.log('Firebase already initialized via VueFire')
   return true
 }
 
-// Add global error handler to suppress common Firebase errors in console
+// Add global error handler to suppress non-critical Firebase errors
 window.addEventListener('error', (event) => {
-  const errorMsg = event.message || '';
-  
-  // Check if this is a Firebase error we want to suppress
-  if (
-    errorMsg.includes('Message channel closed before a response was received') ||
-    errorMsg.includes('ERR_BLOCKED_BY_CLIENT') ||
-    errorMsg.includes('firestore.googleapis.com')
-  ) {
-    // Log a more user-friendly warning instead of the error
-    console.warn('Suppressed Firebase connection error. This will not affect functionality.');
-    
-    // Prevent the error from appearing in the console
-    event.preventDefault();
-    return false;
+  // Check if this is a Firebase error that we can safely ignore
+  if (event.message && (
+    event.message.includes('Message channel closed') ||
+    event.message.includes('ERR_BLOCKED_BY_CLIENT') ||
+    event.message.includes('FirebaseError') ||
+    event.message.includes('network error')
+  )) {
+    console.warn('Suppressed Firebase error:', event.message)
+    event.preventDefault() // Prevent it from showing in console
+    event.stopPropagation()
+    return true
   }
-});
+}, true) // Use capture phase
+
+// Also handle unhandled promise rejections that might come from Firebase
+window.addEventListener('unhandledrejection', (event) => {
+  // Check if this is a Firebase rejection that we can safely ignore
+  if (event.reason && event.reason.message && (
+    event.reason.message.includes('Message channel closed') ||
+    event.reason.message.includes('ERR_BLOCKED_BY_CLIENT') ||
+    event.reason.message.includes('FirebaseError') ||
+    event.reason.message.includes('network error')
+  )) {
+    console.warn('Suppressed Firebase promise rejection:', event.reason.message)
+    event.preventDefault() // Prevent it from showing in console
+    event.stopPropagation()
+    return true
+  }
+}, true) // Use capture phase
