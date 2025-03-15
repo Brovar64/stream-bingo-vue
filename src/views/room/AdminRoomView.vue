@@ -163,14 +163,14 @@
       
       <!-- Active Game Content - Two Column Layout -->
       <div v-if="isRoomActive" class="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        <!-- Left Column: Players -->
-        <div class="lg:col-span-5">
+        <!-- Left Column: Players - Changed to 1/4 of the screen -->
+        <div class="lg:col-span-3">
           <div class="card">
             <h2 class="text-xl font-semibold mb-4">Players</h2>
             <div v-if="!roomData.players || roomData.players.length === 0" class="text-center py-4 text-gray-400">
               No players have joined yet.
             </div>
-            <div v-else class="space-y-2 max-h-[500px] overflow-y-auto">
+            <div v-else class="space-y-2">
               <div 
                 v-for="(player, index) in roomData.players" 
                 :key="index"
@@ -212,16 +212,16 @@
           </div>
         </div>
         
-        <!-- Right Column: Bingo Words and Approvals -->
-        <div class="lg:col-span-7">
-          <!-- Words List in Grid Layout -->
+        <!-- Right Column: Bingo Words and Approvals - Increased to fill remaining space -->
+        <div class="lg:col-span-9">
+          <!-- Words List in Grid Layout - Changed to 5 columns -->
           <div class="card mb-6">
             <h2 class="text-xl font-semibold mb-4">Bingo Words</h2>
             <p class="text-sm text-gray-400 mb-4">
               Click on a word to mark it as called out for all players.
             </p>
             
-            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 max-h-[400px] overflow-y-auto p-1">
+            <div class="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-5 gap-2 p-1">
               <div 
                 v-for="(word, index) in roomData.words" 
                 :key="index"
