@@ -1,10 +1,11 @@
+
 <template>
   <div class="container py-8">
     <div class="flex justify-between items-center mb-8">
       <h1 class="title">Dashboard</h1>
       <div class="flex space-x-4">
         <router-link to="/word-sets" class="btn bg-primary hover:bg-primary-dark text-white">
-          Manage Word Sets
+          Manage Word & Punishment Sets
         </router-link>
         <button @click="logout" class="btn bg-background-lighter hover:bg-gray-700 text-white">
           Logout
@@ -155,6 +156,28 @@
               <p class="text-xs text-gray-400 mt-1">
                 Width is fixed at 4 columns (2 for host, 2 for players)
               </p>
+            </div>
+            
+            <div class="grid grid-cols-2 gap-4">
+              <div class="form-group" v-if="creatorPunishmentSets.length > 0">
+                <label for="creatorPunishmentSet">Creator Punishments (Optional)</label>
+                <select id="creatorPunishmentSet" v-model="punishmentRoom.creatorSetId" class="form-control">
+                  <option value="">None (Add manually)</option>
+                  <option v-for="set in creatorPunishmentSets" :key="set.id" :value="set.id">
+                    {{ set.name }} ({{ set.entries.length }} items)
+                  </option>
+                </select>
+              </div>
+              
+              <div class="form-group" v-if="playerPunishmentSets.length > 0">
+                <label for="playerPunishmentSet">Player Punishments (Optional)</label>
+                <select id="playerPunishmentSet" v-model="punishmentRoom.playerSetId" class="form-control">
+                  <option value="">None (Add manually)</option>
+                  <option v-for="set in playerPunishmentSets" :key="set.id" :value="set.id">
+                    {{ set.name }} ({{ set.entries.length }} items)
+                  </option>
+                </select>
+              </div>
             </div>
             
             <button 
@@ -412,7 +435,7 @@
 </template>
 
 <script>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useRoomStore } from '@/stores/room'
@@ -451,6 +474,8 @@ export default {
     const punishmentRoom = ref({
       code: '',
       gridHeight: 3, // Set default to 4x3
+      creatorSetId: '',
+      playerSetId: ''
     })
     
     const joinRoomData = ref({
@@ -462,6 +487,8 @@ export default {
     const allActiveRooms = ref([])
     const allActivePunishmentRooms = ref([])
     const wordSets = ref([])
+    const playerPunishmentSets = ref([])
+    const creatorPunishmentSets = ref([])
     
     // Computed properties
     const username = computed(() => authStore.username)
@@ -494,7 +521,19 @@ export default {
       // Load saved word sets
       loadWordSets()
       
+      // Load saved punishment sets
+      loadPunishmentSets()
+      
       loading.value = false
+    })
+    
+    // Watch for changes in localStorage
+    watch(() => localStorage.getItem('punishmentSetsUpdated'), () => {
+      loadPunishmentSets()
+    })
+    
+    watch(() => localStorage.getItem('bingoWordSetsUpdated'), () => {
+      loadWordSets()
     })
     
     // Methods
@@ -513,6 +552,39 @@ export default {
         } catch (error) {
           console.error('Failed to parse word sets:', error)
           wordSets.value = []
+        }
+      }
+    }
+    
+    // Load punishment sets from local storage
+    function loadPunishmentSets() {
+      // Load player punishment sets
+      const storedPlayerSets = localStorage.getItem('bingoPlayerPunishmentSets')
+      if (storedPlayerSets) {
+        try {
+          const parsedSets = JSON.parse(storedPlayerSets)
+          playerPunishmentSets.value = parsedSets.map((set, index) => ({
+            ...set,
+            id: index
+          }))
+        } catch (error) {
+          console.error('Failed to parse player punishment sets:', error)
+          playerPunishmentSets.value = []
+        }
+      }
+      
+      // Load creator punishment sets
+      const storedCreatorSets = localStorage.getItem('bingoCreatorPunishmentSets')
+      if (storedCreatorSets) {
+        try {
+          const parsedSets = JSON.parse(storedCreatorSets)
+          creatorPunishmentSets.value = parsedSets.map((set, index) => ({
+            ...set,
+            id: index
+          }))
+        } catch (error) {
+          console.error('Failed to parse creator punishment sets:', error)
+          creatorPunishmentSets.value = []
         }
       }
     }
@@ -574,11 +646,68 @@ export default {
       loading.value = true
       
       try {
+        // Create the room first
         const result = await punishmentRoomStore.createRoom(
           parseInt(punishmentRoom.value.gridHeight)
         )
         
         if (result && result.success) {
+          // Now check if we need to add punishment sets
+          let needsUpdate = false
+          const roomRef = { id: result.roomId }
+          
+          // Load the player punishment set if specified
+          if (punishmentRoom.value.playerSetId !== '') {
+            const playerSetIndex = parseInt(punishmentRoom.value.playerSetId)
+            if (!isNaN(playerSetIndex) && playerPunishmentSets.value[playerSetIndex]) {
+              const playerSet = playerPunishmentSets.value[playerSetIndex]
+              
+              // Add each player punishment to the right side of the grid
+              for (let i = 0; i < playerSet.entries.length && i < punishmentRoom.value.gridHeight * 2; i++) {
+                const entry = playerSet.entries[i]
+                const row = Math.floor(i / 2)
+                const col = 2 + (i % 2) // Start at column 2 (right side)
+                
+                if (row < punishmentRoom.value.gridHeight) {
+                  await punishmentRoomStore.addCell(
+                    { row, col },
+                    entry.phrase,
+                    entry.punishment,
+                    'right',
+                    roomRef
+                  )
+                  needsUpdate = true
+                }
+              }
+            }
+          }
+          
+          // Load the creator punishment set if specified
+          if (punishmentRoom.value.creatorSetId !== '') {
+            const creatorSetIndex = parseInt(punishmentRoom.value.creatorSetId)
+            if (!isNaN(creatorSetIndex) && creatorPunishmentSets.value[creatorSetIndex]) {
+              const creatorSet = creatorPunishmentSets.value[creatorSetIndex]
+              
+              // Add each creator punishment to the left side of the grid
+              for (let i = 0; i < creatorSet.entries.length && i < punishmentRoom.value.gridHeight * 2; i++) {
+                const entry = creatorSet.entries[i]
+                const row = Math.floor(i / 2)
+                const col = i % 2 // Start at column 0 (left side)
+                
+                if (row < punishmentRoom.value.gridHeight) {
+                  await punishmentRoomStore.addCell(
+                    { row, col },
+                    entry.phrase,
+                    entry.punishment,
+                    'left',
+                    roomRef
+                  )
+                  needsUpdate = true
+                }
+              }
+            }
+          }
+          
           // Add the room to the list
           userPunishmentRooms.value.push({
             id: result.roomId,
@@ -779,6 +908,8 @@ export default {
       allActiveRooms,
       allActivePunishmentRooms,
       wordSets,
+      playerPunishmentSets,
+      creatorPunishmentSets,
       username,
       isTestUser,
       joinButton,
