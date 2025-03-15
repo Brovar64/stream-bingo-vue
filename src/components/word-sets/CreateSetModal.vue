@@ -1,64 +1,37 @@
 <template>
-  <div v-if="visible" class="modal-wrapper">
-    <div class="modal-backdrop" @click="closeModal"></div>
-    <div class="modal-container">
+  <div class="modal-container" v-if="visible">
+    <div class="modal-overlay" @click="closeModal"></div>
+    <div class="modal-content">
       <div class="modal-header">
-        <h2 class="modal-title">{{ typeLabel }}</h2>
-        <button @click="closeModal" class="modal-close">✕</button>
+        <h2>{{ typeLabel }}</h2>
+        <button @click="closeModal" class="close-btn">×</button>
       </div>
       
-      <div v-if="type === 'word'" class="modal-body">
-        <label class="label">Enter or Paste Words</label>
-        <p class="help-text">
-          Each word or phrase should be on a new line. Empty lines will be ignored.
-        </p>
-        <textarea 
-          v-model="wordInput" 
-          class="textarea"
-          placeholder="Enter words here..."
-        ></textarea>
-      </div>
-      
-      <div v-else class="modal-body">
-        <label class="label">Enter Phrase and Punishment Pairs</label>
-        <p class="help-text">
-          Format: "Phrase|Punishment" (one pair per line)
-        </p>
-        <textarea 
-          v-model="punishmentInput" 
-          class="textarea"
-          placeholder="When X happens|Do Y punishment&#10;Another trigger|Another punishment&#10;..."
-        ></textarea>
-      </div>
-      
-      <div class="modal-actions">
-        <div class="file-input-wrapper">
-          <label for="fileInput" class="file-input-label">Import from TXT File</label>
-          <input 
-            type="file" 
-            id="fileInput" 
-            accept=".txt" 
-            @change="handleFileImport" 
-            class="hidden-input"
-          >
+      <div class="modal-body">
+        <div v-if="type === 'word'">
+          <label>Enter or Paste Words</label>
+          <p class="help-text">Each word or phrase should be on a new line. Empty lines will be ignored.</p>
+          <textarea v-model="wordInput" placeholder="Enter words here..."></textarea>
         </div>
         
-        <div class="count">
-          <span class="count-value">{{ type === 'word' ? parsedWords.length : parsedPunishments.length }}</span> 
-          {{ type === 'word' ? 'words' : 'entries' }}
+        <div v-else>
+          <label>Enter Phrase and Punishment Pairs</label>
+          <p class="help-text">Format: "Phrase|Punishment" (one pair per line)</p>
+          <textarea v-model="punishmentInput" placeholder="When X happens|Do Y punishment"></textarea>
+        </div>
+        
+        <div class="file-input">
+          <button @click="triggerFileInput" class="btn-secondary">Import from TXT File</button>
+          <input type="file" id="fileInput" ref="fileInput" accept=".txt" @change="handleFileImport" style="display:none">
+          <span class="count">{{ type === 'word' ? parsedWords.length : parsedPunishments.length }} {{ type === 'word' ? 'words' : 'entries' }}</span>
         </div>
       </div>
       
       <div class="modal-footer">
-        <button 
-          @click="closeModal" 
-          class="btn-cancel"
-        >
-          Cancel
-        </button>
+        <button @click="closeModal" class="btn-secondary">Cancel</button>
         <button 
           @click="saveSet" 
-          class="btn-save"
+          class="btn-primary"
           :disabled="type === 'word' ? parsedWords.length === 0 : parsedPunishments.length === 0"
         >
           Save Set
@@ -71,7 +44,6 @@
 <script>
 export default {
   name: 'CreateSetModal',
-  
   props: {
     visible: {
       type: Boolean,
@@ -138,6 +110,10 @@ export default {
   },
   
   methods: {
+    triggerFileInput() {
+      this.$refs.fileInput.click();
+    },
+    
     closeModal() {
       this.wordInput = '';
       this.punishmentInput = '';
@@ -192,153 +168,137 @@ export default {
 </script>
 
 <style scoped>
-.modal-wrapper {
-  position: fixed;
-  inset: 0;
-  z-index: 100;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.modal-backdrop {
-  position: absolute;
-  inset: 0;
-  background-color: rgba(0, 0, 0, 0.75);
-}
-
 .modal-container {
-  position: relative;
-  background-color: #1E1E1E;
-  border-radius: 0.5rem;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  position: fixed;
+  top: 0;
+  left: 0;
   width: 100%;
-  max-width: 48rem;
+  height: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 9999;
+}
+
+.modal-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.7);
+}
+
+.modal-content {
+  position: relative;
+  width: 90%;
+  max-width: 600px;
   max-height: 90vh;
   overflow-y: auto;
-  padding: 1.5rem;
+  background-color: #1E1E1E;
+  border-radius: 8px;
+  box-shadow: 0 0 20px rgba(0, 0, 0, 0.3);
+  z-index: 1;
 }
 
 .modal-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 1.5rem;
+  padding: 15px 20px;
+  border-bottom: 1px solid #333;
 }
 
-.modal-title {
+.modal-header h2 {
+  margin: 0;
   font-size: 1.5rem;
-  font-weight: 700;
 }
 
-.modal-close {
-  color: #9CA3AF;
-  font-size: 1.5rem;
+.close-btn {
   background: none;
   border: none;
+  font-size: 1.5rem;
+  line-height: 1;
+  color: #999;
   cursor: pointer;
-}
-
-.modal-close:hover {
-  color: white;
 }
 
 .modal-body {
-  margin-bottom: 1.5rem;
+  padding: 20px;
 }
 
-.label {
+.modal-body label {
   display: block;
-  font-size: 0.875rem;
-  color: #9CA3AF;
-  margin-bottom: 0.5rem;
+  margin-bottom: 5px;
+  font-weight: bold;
 }
 
 .help-text {
-  font-size: 0.875rem;
-  color: #6B7280;
-  margin-bottom: 0.75rem;
+  font-size: 0.85rem;
+  color: #999;
+  margin-bottom: 10px;
 }
 
-.textarea {
+textarea {
   width: 100%;
-  min-height: 12rem;
+  min-height: 200px;
   background-color: #2D2D2D;
-  border: 1px solid #4B5563;
-  border-radius: 0.375rem;
-  padding: 0.75rem;
+  border: 1px solid #444;
+  border-radius: 4px;
+  padding: 10px;
   color: white;
   font-family: monospace;
+  margin-bottom: 15px;
 }
 
-.modal-actions {
+.file-input {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 1.5rem;
-}
-
-.file-input-wrapper {
-  position: relative;
-}
-
-.file-input-label {
-  display: inline-block;
-  background-color: #2D2D2D;
-  color: white;
-  padding: 0.5rem 1rem;
-  border-radius: 0.375rem;
-  cursor: pointer;
-}
-
-.file-input-label:hover {
-  background-color: #4B5563;
-}
-
-.hidden-input {
-  display: none;
+  margin-bottom: 20px;
 }
 
 .count {
-  color: #9CA3AF;
-}
-
-.count-value {
-  font-weight: 700;
+  font-size: 0.9rem;
+  color: #ccc;
 }
 
 .modal-footer {
   display: flex;
   justify-content: flex-end;
-  gap: 0.75rem;
+  padding: 15px 20px;
+  border-top: 1px solid #333;
+  gap: 10px;
 }
 
-.btn-cancel {
-  background-color: #2D2D2D;
-  color: white;
-  padding: 0.5rem 1rem;
-  border-radius: 0.375rem;
-  cursor: pointer;
-}
-
-.btn-cancel:hover {
-  background-color: #4B5563;
-}
-
-.btn-save {
+.btn-primary {
   background-color: #FF4081;
   color: white;
-  padding: 0.5rem 1rem;
-  border-radius: 0.375rem;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 4px;
   cursor: pointer;
 }
 
-.btn-save:hover {
-  background-color: #C51162;
+.btn-primary:disabled {
+  background-color: #666;
+  cursor: not-allowed;
 }
 
-.btn-save:disabled {
-  background-color: #6B7280;
-  cursor: not-allowed;
+.btn-secondary {
+  background-color: #333;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background-color: #D81B60;
+}
+
+.btn-secondary:hover {
+  background-color: #444;
 }
 </style>
