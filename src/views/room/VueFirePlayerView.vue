@@ -80,6 +80,18 @@
         </div>
       </div>
       
+      <!-- Debug info -->
+      <div class="mb-4 p-4 bg-gray-800 rounded text-sm" v-if="debugMode">
+        <h3 class="font-semibold mb-2">Debug Information:</h3>
+        <p>Room ID: {{ roomId }}</p>
+        <p>Username: {{ username }}</p>
+        <p>Room Status: {{ roomData?.status }}</p>
+        <p>Has Grid: {{ !!playerGrid }}</p>
+        <p>Grid Keys: {{ playerGrid ? Object.keys(playerGrid).length : 'None' }}</p>
+        <p>Players: {{ JSON.stringify(roomData?.players) }}</p>
+        <p>Grid Structure: {{ JSON.stringify(roomData?.playerGrids) }}</p>
+      </div>
+      
       <!-- Bingo card -->
       <div class="flex flex-col items-center mb-8">
         <div v-if="hasWon" class="bg-background-card p-4 rounded-lg mb-6 text-center">
@@ -87,16 +99,30 @@
           <p class="text-gray-300">Congratulations on achieving bingo!</p>
         </div>
         
-        <div v-if="!playerGrid" class="text-center py-8">
+        <div v-if="!hasValidPlayerGrid" class="text-center py-8">
           <div class="spinner mx-auto mb-4"></div>
           <p class="text-gray-400 mb-3">Your bingo board is being prepared...</p>
           <p class="text-sm text-gray-500">This may take a few seconds. If it doesn't appear soon, try refreshing the page.</p>
-          <button 
-            @click="retryLoading" 
-            class="btn bg-primary hover:bg-primary-dark text-white mt-4"
-          >
-            Retry
-          </button>
+          <div class="space-y-2 mt-6">
+            <button 
+              @click="retryLoading" 
+              class="btn bg-primary hover:bg-primary-dark text-white"
+            >
+              Retry Loading Board
+            </button>
+            <button 
+              @click="debugMode = !debugMode" 
+              class="btn bg-gray-700 hover:bg-gray-600 text-white ml-2"
+            >
+              {{ debugMode ? 'Hide Debug Info' : 'Show Debug Info' }}
+            </button>
+            <button 
+              @click="triggerManualGridGeneration" 
+              class="btn bg-yellow-600 hover:bg-yellow-500 text-white block w-full mt-4"
+            >
+              Force Generate Grid
+            </button>
+          </div>
         </div>
         
         <div v-else>
@@ -160,6 +186,8 @@ import { useRoute, useRouter } from 'vue-router';
 import { useVueFireRoomStore } from '@/stores/vuefire-room';
 import { useNotificationStore } from '@/stores/notification';
 import { useAuthStore } from '@/stores/auth';
+import { doc, getDoc, updateDoc } from 'firebase/firestore';
+import { db } from '@/firebase';
 
 // Set up hooks
 const route = useRoute();
@@ -175,6 +203,7 @@ const roomId = route.params.id;
 const loading = ref(true);
 const loadError = ref(false);
 const loadErrorMessage = ref('');
+const debugMode = ref(false);
 
 // Computed properties
 const roomData = computed(() => roomStore.roomData);
@@ -184,8 +213,26 @@ const username = computed(() => authStore.username);
 
 // Get the player's grid from room data
 const playerGrid = computed(() => {
-  if (!roomData.value?.playerGrids || !username.value) return null;
+  if (!roomData.value?.playerGrids) {
+    console.log('[VUEFIRE PLAYER] No playerGrids found in room data');
+    return null;
+  }
+  
+  if (!username.value) {
+    console.log('[VUEFIRE PLAYER] No username available');
+    return null;
+  }
+  
+  console.log('[VUEFIRE PLAYER] Looking for grid for:', username.value);
+  console.log('[VUEFIRE PLAYER] Available playerGrids:', Object.keys(roomData.value.playerGrids));
+  
   return roomData.value.playerGrids[username.value] || null;
+});
+
+// Check if player grid is valid
+const hasValidPlayerGrid = computed(() => {
+  if (!playerGrid.value) return false;
+  return Object.keys(playerGrid.value).length > 0;
 });
 
 // Check if player has won
@@ -210,9 +257,28 @@ const pendingApprovalCount = computed(() => {
   return Object.values(playerGrid.value).filter(cell => cell.marked && !cell.approved).length;
 });
 
+// Watch for room data changes
+watch(roomData, (newData) => {
+  console.log('[VUEFIRE PLAYER] Room data updated:', newData?.id);
+  
+  if (newData?.playerGrids) {
+    console.log('[VUEFIRE PLAYER] Player grids available:', Object.keys(newData.playerGrids));
+    
+    if (username.value && newData.playerGrids[username.value]) {
+      console.log('[VUEFIRE PLAYER] Found grid for current user:', 
+        Object.keys(newData.playerGrids[username.value]).length, 'cells');
+    } else {
+      console.log('[VUEFIRE PLAYER] No grid found for current user');
+    }
+  } else {
+    console.log('[VUEFIRE PLAYER] No player grids in room data');
+  }
+});
+
 // Load room data on component mount
 onMounted(async () => {
   loading.value = true;
+  console.log('[VUEFIRE PLAYER] Component mounted');
   
   try {
     // Check authentication
@@ -221,6 +287,8 @@ onMounted(async () => {
       router.push('/dashboard');
       return;
     }
+    
+    console.log(`[VUEFIRE PLAYER] Joining room ${roomId} as ${username.value}`);
     
     // Join the room with the current username
     const joinResult = await roomStore.joinRoom(username.value, roomId);
@@ -232,15 +300,81 @@ onMounted(async () => {
       return;
     }
     
-    // Room data should now be loaded reactively
+    console.log('[VUEFIRE PLAYER] Join successful, checking for grid');
+    
+    // If the room is active, check if we need to generate a grid
+    if (roomData.value?.status === 'active' && !hasValidPlayerGrid.value) {
+      console.log('[VUEFIRE PLAYER] Room is active but no grid, trying to force grid generation');
+      await checkAndCreateGrid();
+    }
+    
     loading.value = false;
   } catch (error) {
-    console.error('Error in room setup:', error);
+    console.error('[VUEFIRE PLAYER] Error in room setup:', error);
     loadError.value = true;
     loadErrorMessage.value = error.message || 'Error loading room';
     loading.value = false;
   }
 });
+
+// Check if grid exists and create it if needed
+async function checkAndCreateGrid() {
+  console.log('[VUEFIRE PLAYER] Checking grid generation status');
+  
+  try {
+    // Check if room has playerGrids initialized
+    if (!roomData.value?.playerGrids) {
+      console.log('[VUEFIRE PLAYER] No playerGrids in room, attempting to initialize');
+      
+      // Initialize empty playerGrids
+      const roomRef = doc(db, 'rooms', roomId);
+      await updateDoc(roomRef, {
+        playerGrids: {}
+      });
+    }
+    
+    // Check if current user has a grid
+    if (roomData.value?.playerGrids && !roomData.value.playerGrids[username.value]) {
+      console.log('[VUEFIRE PLAYER] No grid for current user, sending request to generate');
+      await triggerManualGridGeneration();
+    }
+  } catch (error) {
+    console.error('[VUEFIRE PLAYER] Error checking/creating grid:', error);
+    notificationStore.showNotification('Error setting up bingo grid', 'error');
+  }
+}
+
+// Force grid generation (for players who joined but don't have a grid)
+async function triggerManualGridGeneration() {
+  console.log('[VUEFIRE PLAYER] Triggering manual grid generation');
+  
+  try {
+    // Check if player exists in the room's player list
+    const playerExists = roomData.value?.players?.some(p => p.nickname === username.value);
+    
+    if (!playerExists) {
+      console.log('[VUEFIRE PLAYER] Player not registered in room, rejoining');
+      await roomStore.joinRoom(username.value, roomId);
+    }
+    
+    // Request grid generation directly by updating room's pending approval requests
+    // This signals to the admin that we need a grid
+    const roomRef = doc(db, 'rooms', roomId);
+    await updateDoc(roomRef, {
+      pendingGridRequests: {
+        [username.value]: {
+          timestamp: new Date().toISOString(),
+          nickname: username.value
+        }
+      }
+    });
+    
+    notificationStore.showNotification('Grid generation request sent. Please wait for admin approval.', 'info');
+  } catch (error) {
+    console.error('[VUEFIRE PLAYER] Error triggering grid generation:', error);
+    notificationStore.showNotification('Error requesting grid generation', 'error');
+  }
+}
 
 // Retry loading room
 async function retryLoading() {
@@ -248,11 +382,22 @@ async function retryLoading() {
   loadError.value = false;
   
   try {
-    // Simply reload the room and join again
+    console.log('[VUEFIRE PLAYER] Retrying room load');
+    
+    // Reload the room data
+    await roomStore.loadRoom(roomId);
+    
+    // Re-join the room
     await roomStore.joinRoom(username.value, roomId);
+    
+    // Check if we need to generate a grid
+    if (roomData.value?.status === 'active' && !hasValidPlayerGrid.value) {
+      await checkAndCreateGrid();
+    }
+    
     loading.value = false;
   } catch (error) {
-    console.error('Error in retryLoading:', error);
+    console.error('[VUEFIRE PLAYER] Error in retryLoading:', error);
     loadError.value = true;
     loadErrorMessage.value = error.message || 'Error reloading room';
     loading.value = false;
@@ -267,7 +412,7 @@ onUnmounted(() => {
 // Mark a cell
 async function markCell(row, col) {
   if (!roomData.value || !isRoomActive.value || !username.value || !playerGrid.value) {
-    console.log('Cannot mark cell - missing data or inactive room');
+    console.log('[VUEFIRE PLAYER] Cannot mark cell - missing data or inactive room');
     return;
   }
   
@@ -276,23 +421,23 @@ async function markCell(row, col) {
   const cell = playerGrid.value?.[cellKey];
   
   if (!cell) {
-    console.log(`Cell not found: ${cellKey}`);
+    console.log(`[VUEFIRE PLAYER] Cell not found: ${cellKey}`);
     return;
   }
   
   // Don't allow marking if already marked
   if (cell.marked) {
-    console.log(`Cell ${cellKey} is already marked`);
+    console.log(`[VUEFIRE PLAYER] Cell ${cellKey} is already marked`);
     notificationStore.showNotification('This cell is already marked', 'info');
     return;
   }
   
   try {
-    console.log(`Marking cell ${cellKey}`);
+    console.log(`[VUEFIRE PLAYER] Marking cell ${cellKey}`);
     // Mark the cell
     await roomStore.markCell(username.value, row, col);
   } catch (error) {
-    console.error(`Error marking cell ${cellKey}:`, error);
+    console.error(`[VUEFIRE PLAYER] Error marking cell ${cellKey}:`, error);
     notificationStore.showNotification(`Error marking cell: ${error.message}`, 'error');
   }
 }
