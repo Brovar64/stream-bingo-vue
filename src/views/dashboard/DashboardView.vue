@@ -115,6 +115,15 @@
             {{ joinLoading ? 'Joining...' : 'Join Room' }}
           </button>
         </form>
+        
+        <div class="mt-4 pt-4 border-t border-gray-600">
+          <button
+            @click="useVueFire = !useVueFire" 
+            class="bg-background-lighter hover:bg-background-card text-sm px-2 py-1 rounded border border-gray-600"
+          >
+            {{ useVueFire ? '✅ Using VueFire (Recommended)' : '❌ Using Legacy Mode' }}
+          </button>
+        </div>
       </div>
       
       <!-- Your Rooms Card -->
@@ -220,6 +229,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useRoomStore } from '@/stores/room'
+import { useVueFireRoomStore } from '@/stores/vuefire-room'
 import { useNotificationStore } from '@/stores/notification'
 
 export default {
@@ -228,6 +238,7 @@ export default {
     const router = useRouter()
     const authStore = useAuthStore()
     const roomStore = useRoomStore()
+    const vuefireRoomStore = useVueFireRoomStore()
     const notificationStore = useNotificationStore()
     
     // Refs
@@ -247,6 +258,7 @@ export default {
     const userRooms = ref([])
     const allActiveRooms = ref([])
     const wordSets = ref([])
+    const useVueFire = ref(true) // Default to VueFire for better performance
     
     // Computed properties
     const username = computed(() => authStore.username)
@@ -334,9 +346,9 @@ export default {
       }
     }
     
-    // Join room from the form
+    // Join room using either VueFire or legacy mode
     async function handleJoinRoom() {
-      console.log("[DASHBOARD] handleJoinRoom called")
+      console.log("[DASHBOARD] handleJoinRoom called, using VueFire:", useVueFire.value)
       
       // Prevent action if already loading
       if (joinLoading.value) {
@@ -346,30 +358,37 @@ export default {
       
       // Disable the button to prevent double clicks
       joinLoading.value = true
-      console.log("[DASHBOARD] Set joinLoading to true")
       
       try {
         // Get and normalize the room code
         const roomCode = joinRoomData.value.code.trim().toUpperCase()
         joinRoomData.value.code = roomCode
-        console.log(`[DASHBOARD] Joining room: ${roomCode}`)
         
         if (!roomCode) {
           notificationStore.showNotification('Please enter a room code', 'error')
           joinLoading.value = false
-          console.log("[DASHBOARD] No room code provided")
           return
         }
         
-        // Try to join the room - we don't care about the return value
-        try {
-          await roomStore.joinRoom(username.value, roomCode)
-          console.log(`[DASHBOARD] Join complete, navigating to room: ${roomCode}`)
-          router.push(`/play/${roomCode}`)
-        } catch (error) {
-          console.error('[DASHBOARD] Join failed:', error)
-          notificationStore.showNotification(`Failed to join room: ${error.message || 'Unknown error'}`, 'error')
-          joinLoading.value = false
+        if (useVueFire.value) {
+          // Use VueFire version
+          const result = await vuefireRoomStore.joinRoom(username.value, roomCode)
+          
+          if (result && result.success) {
+            router.push(`/play-new/${roomCode}`)
+          } else {
+            joinLoading.value = false
+          }
+        } else {
+          // Use legacy version
+          try {
+            await roomStore.joinRoom(username.value, roomCode)
+            router.push(`/play/${roomCode}`)
+          } catch (error) {
+            console.error('[DASHBOARD] Join failed:', error)
+            notificationStore.showNotification(`Failed to join room: ${error.message || 'Unknown error'}`, 'error')
+            joinLoading.value = false
+          }
         }
       } catch (error) {
         console.error('[DASHBOARD] Join room error:', error)
@@ -378,18 +397,24 @@ export default {
       }
     }
     
-    // Ultra-simplified quick join room handler
+    // Quick join a room
     async function handleQuickJoinRoom(roomId) {
-      console.log(`[DASHBOARD] Joining room: ${roomId}`)
+      console.log(`[DASHBOARD] Quick joining room: ${roomId}, using VueFire:`, useVueFire.value)
       
       if (joinLoading.value) return
       
       joinLoading.value = true
       
       try {
-        // Just call join and immediately navigate, no results checking
-        await roomStore.joinRoom(username.value, roomId)
-        router.push(`/play/${roomId}`)
+        if (useVueFire.value) {
+          // Use VueFire version
+          await vuefireRoomStore.joinRoom(username.value, roomId)
+          router.push(`/play-new/${roomId}`)
+        } else {
+          // Use legacy version
+          await roomStore.joinRoom(username.value, roomId)
+          router.push(`/play/${roomId}`)
+        }
       } catch (error) {
         console.error(`[DASHBOARD] Error joining room: ${error}`)
         notificationStore.showNotification(`Failed to join room: ${error.message || 'Unknown error'}`, 'error')
@@ -466,6 +491,7 @@ export default {
       wordSets,
       username,
       isTestUser,
+      useVueFire,
       joinButton,
       generateRandomCode,
       createRoom,
