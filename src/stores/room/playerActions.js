@@ -83,8 +83,11 @@ export async function joinRoom(nickname, roomId) {
     
     // Load the room to update state
     console.log('[JOIN ROOM] Loading room data into state')
+    
+    // We load the room into the state but DON'T return whatever loadRoom returns
     await loadRoom(roomId)
     
+    // Instead always return our standard success object
     console.log('[JOIN ROOM] Join process completed successfully')
     loading.value = false
     return { success: true, roomId: roomId }
