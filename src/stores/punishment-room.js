@@ -147,6 +147,8 @@ export const usePunishmentRoomStore = defineStore('punishmentRoom', () => {
     error.value = null
     
     try {
+      console.log('Creating new punishment room with grid height:', gridHeight);
+      
       // Generate a random 6-character alphanumeric room code
       const generateRoomCode = () => {
         const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
@@ -158,27 +160,32 @@ export const usePunishmentRoomStore = defineStore('punishmentRoom', () => {
       }
       
       const roomId = generateRoomCode()
+      console.log('Generated room code:', roomId);
       
       // Create the room document
       const roomData = {
         createdAt: serverTimestamp(),
         creatorId: authStore.user?.uid || 'unknown-user',
         status: 'setup',
-        gridHeight: gridHeight,
+        gridHeight: parseInt(gridHeight), // Ensure gridHeight is a number
         grid: {}, // Will contain the cells with phrases and punishments
-        leftSide: {}, // Creator side
-        rightSide: {}, // Players side
         calledOutCells: [], // Cells that have been marked as completed
         players: [],
         completedPunishments: [], // Punishments marked as completed
         punishmentVotes: {} // Voting data for punishments
       }
       
+      console.log('Preparing room data:', roomData);
+      console.log('Auth user ID:', authStore.user?.uid);
+      
+      // Create the document in Firestore with explicit ID
       const roomRef = doc(db, 'punishmentRooms', roomId)
       await setDoc(roomRef, roomData)
+      console.log('Room document created in Firestore');
       
       // Load the newly created room
       await loadRoom(roomId)
+      console.log('Successfully loaded the new room');
       
       loading.value = false
       return { success: true, roomId }
