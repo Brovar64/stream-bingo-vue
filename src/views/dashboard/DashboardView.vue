@@ -498,15 +498,28 @@ export default {
       joinPunishmentLoading.value = true
       
       try {
+        console.log('Joining punishment room as player');
         const roomCode = joinPunishmentData.value.code.trim().toUpperCase()
         joinPunishmentData.value.code = roomCode
         
-        const result = await punishmentRoomStore.joinRoom(username.value, roomCode)
-        
-        if (result.success) {
-          router.push(`/punishment-play/${roomCode}`)
-        } else {
-          throw new Error(result.error || 'Failed to join punishment room')
+        // First check if the punishment room exists
+        try {
+          // Preload the room to make sure it exists before trying to join
+          await punishmentRoomStore.loadRoom(roomCode);
+          console.log('Found punishment room:', roomCode);
+          
+          // Now join the room with the punishment room store
+          const result = await punishmentRoomStore.joinRoom(username.value, roomCode)
+          
+          if (result.success) {
+            console.log('Successfully joined punishment room, redirecting to player view');
+            router.push(`/punishment-play/${roomCode}`)
+          } else {
+            throw new Error(result.error || 'Failed to join punishment room')
+          }
+        } catch (err) {
+          console.error('Error checking punishment room:', err);
+          notificationStore.showNotification(`Room ${roomCode} not found in punishment mode`, 'error');
         }
       } catch (error) {
         console.error('Join punishment room error:', error)
