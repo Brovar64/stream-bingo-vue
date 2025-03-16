@@ -202,6 +202,16 @@
           <div v-if="parsedItems.length > wordSetStore.MAX_ITEMS_PER_SET" class="text-xs text-warning mt-1">
             Only the first {{ wordSetStore.MAX_ITEMS_PER_SET }} items will be saved
           </div>
+          
+          <!-- Format help for punishment sets -->
+          <div v-if="currentSetType !== 'word'" class="mt-2 text-xs text-gray-400">
+            <strong>Format:</strong> Each line should be in the format "Phrase|Punishment"
+            <div class="mt-1 bg-background-lighter p-2 rounded font-mono">
+              Example:<br>
+              Some event happens|Do 10 pushups<br>
+              Another trigger|Drink water
+            </div>
+          </div>
         </div>
         
         <div class="flex justify-between items-center mb-6">
@@ -349,15 +359,25 @@ export default {
       if (!newSetName.value.trim() || parsedItems.value.length === 0) return
       
       try {
-        console.log('Saving set type:', currentSetType.value);
-        console.log('Parsed items:', parsedItems.value);
+        // Simple debugging - log what we're trying to save
+        console.log(`Saving ${currentSetType.value} set with ${parsedItems.value.length} items`);
+        console.log('First item example:', JSON.stringify(parsedItems.value[0]));
         
-        // Create the set data with proper formatting
         const setData = {
           name: newSetName.value.trim(),
           type: currentSetType.value,
           items: parsedItems.value
         };
+        
+        // Important debug message - examine what's being sent to the store
+        console.log(`About to save set data:`, 
+          JSON.stringify({
+            name: setData.name,
+            type: setData.type,
+            itemCount: setData.items.length,
+            itemsSample: setData.items.slice(0, 2)
+          })
+        );
         
         // Save to store
         const setId = await wordSetStore.saveWordSet(setData, currentSetId.value);
@@ -369,7 +389,7 @@ export default {
           );
           closeModal();
         } else {
-          throw new Error('Failed to save set');
+          throw new Error('Failed to save set - no set ID returned');
         }
       } catch (error) {
         console.error('Error saving set:', error);
