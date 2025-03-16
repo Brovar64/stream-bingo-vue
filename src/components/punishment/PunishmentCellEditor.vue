@@ -1,68 +1,60 @@
 <template>
-  <div v-if="visible" class="modal-overlay">
-    <div class="modal-container">
-      <div class="modal-header">
-        <h3 class="text-lg font-semibold">
-          {{ isEditing ? 'Edit Cell' : 'Add New Cell' }}
-        </h3>
-        <button @click="cancel" class="close-button">×</button>
+  <BaseModal
+    v-model="localVisible"
+    :title="isEditing ? 'Edit Cell' : 'Add New Cell'"
+    size="small"
+  >
+    <form @submit.prevent="save">
+      <BaseInput
+        v-model="editedCell.phrase"
+        label="Phrase"
+        placeholder="Enter bingo phrase"
+        required
+      />
+      
+      <BaseInput
+        v-model="editedCell.punishment"
+        label="Punishment"
+        placeholder="Enter punishment"
+        required
+      />
+      
+      <div class="text-sm text-gray-400 mb-4">
+        Cell position: Row {{ position.row + 1 }}, Column {{ position.col + 1 }} 
+        ({{ side === 'left' ? 'Creator' : 'Players' }} side)
       </div>
       
-      <div class="modal-body">
-        <form @submit.prevent="save">
-          <div class="form-group">
-            <label for="phrase">Phrase</label>
-            <input 
-              type="text" 
-              id="phrase" 
-              v-model="editedCell.phrase" 
-              class="form-control"
-              placeholder="Enter bingo phrase" 
-              required
-            />
-          </div>
-          
-          <div class="form-group">
-            <label for="punishment">Punishment</label>
-            <input 
-              type="text" 
-              id="punishment" 
-              v-model="editedCell.punishment" 
-              class="form-control"
-              placeholder="Enter punishment" 
-              required
-            />
-          </div>
-          
-          <div class="text-sm text-gray-400 mb-4">
-            Cell position: Row {{ position.row + 1 }}, Column {{ position.col + 1 }} 
-            ({{ side === 'left' ? 'Creator' : 'Players' }} side)
-          </div>
-          
-          <div class="flex justify-end space-x-3">
-            <button 
-              type="button" 
-              @click="cancel" 
-              class="btn bg-background-lighter hover:bg-gray-700 text-white"
-            >
-              Cancel
-            </button>
-            <button 
-              type="submit" 
-              class="btn btn-primary"
-            >
-              Save
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  </div>
+      <template #footer>
+        <div class="flex justify-end space-x-3">
+          <button 
+            type="button" 
+            @click="cancel" 
+            class="btn bg-background-lighter hover:bg-gray-700 text-white"
+          >
+            Cancel
+          </button>
+          <button 
+            type="submit" 
+            class="btn btn-primary"
+          >
+            Save
+          </button>
+        </div>
+      </template>
+    </form>
+  </BaseModal>
 </template>
 
 <script>
+import BaseModal from '@/components/base/BaseModal.vue';
+import BaseInput from '@/components/base/BaseInput.vue';
+
 export default {
   name: 'PunishmentCellEditor',
+  components: {
+    BaseModal,
+    BaseInput
+  },
   props: {
     visible: {
       type: Boolean,
@@ -94,6 +86,14 @@ export default {
   computed: {
     isEditing() {
       return !!this.cell
+    },
+    localVisible: {
+      get() {
+        return this.visible;
+      },
+      set(value) {
+        this.$emit('update:visible', value);
+      }
     }
   },
   watch: {
@@ -130,39 +130,9 @@ export default {
       })
     },
     cancel() {
-      this.$emit('update:visible', false)
+      this.localVisible = false
       this.$emit('cancel')
     }
   }
 }
 </script>
-
-<style scoped>
-.modal-overlay {
-  @apply fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50;
-}
-
-.modal-container {
-  @apply bg-background-card rounded-lg shadow-lg w-full max-w-md;
-}
-
-.modal-header {
-  @apply flex justify-between items-center p-4 border-b border-gray-700;
-}
-
-.modal-body {
-  @apply p-4;
-}
-
-.close-button {
-  @apply text-2xl text-gray-400 hover:text-white;
-}
-
-.form-group {
-  @apply mb-4;
-}
-
-.form-group label {
-  @apply block text-sm font-medium text-gray-300 mb-1;
-}
-</style>
