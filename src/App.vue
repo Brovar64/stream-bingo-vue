@@ -8,7 +8,8 @@
         <p>Please wait while we set things up.</p>
       </div>
     </div>
-    
+
+
     <!-- Global Notification Component -->
     <Notification />
     
