@@ -1,44 +1,41 @@
 <template>
-  <div class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
-    <div class="bg-background-card rounded-lg shadow-lg w-full max-w-2xl p-6">
-      <div class="flex justify-between items-center mb-6">
-        <h2 class="text-xl font-bold">Paste Multiple Words</h2>
-        <button @click="$emit('close')" class="text-gray-400 hover:text-white text-xl">
-          ✕
-        </button>
-      </div>
+  <BaseModal 
+    v-model="showModal" 
+    title="Paste Multiple Words" 
+    size="large"
+  >
+    <BaseTextarea
+      v-model="textInput"
+      label="Paste words or phrases, one per line"
+      helpText="Empty lines will be ignored"
+      placeholder="Enter each word or phrase on a new line..."
+      rows="10"
+      :spellcheck="false"
+      textareaClass="font-mono"
+      :showCount="true"
+    />
+    
+    <div class="flex items-center justify-between my-6">
+      <label for="wordListFile" class="btn bg-background-lighter hover:bg-gray-700 text-white cursor-pointer">
+        Import from TXT File
+      </label>
+      <input 
+        type="file" 
+        id="wordListFile" 
+        accept=".txt" 
+        @change="handleFileImport" 
+        class="hidden"
+      >
       
-      <div class="mb-6">
-        <p class="text-sm text-gray-400 mb-2">
-          Paste words or phrases, one per line. Empty lines will be ignored.
-        </p>
-        <textarea 
-          v-model="textInput" 
-          class="form-control w-full h-48 font-mono"
-          placeholder="Enter each word or phrase on a new line..."
-        ></textarea>
+      <div class="text-sm text-gray-400">
+        <span class="font-bold">{{ parsedWords.length }}</span> words detected
       </div>
-      
-      <div class="flex items-center justify-between mb-6">
-        <label for="wordListFile" class="btn bg-background-lighter hover:bg-gray-700 text-white cursor-pointer">
-          Import from TXT File
-        </label>
-        <input 
-          type="file" 
-          id="wordListFile" 
-          accept=".txt" 
-          @change="handleFileImport" 
-          class="hidden"
-        >
-        
-        <div class="text-sm text-gray-400">
-          <span class="font-bold">{{ parsedWords.length }}</span> words detected
-        </div>
-      </div>
-      
+    </div>
+    
+    <template #footer>
       <div class="flex justify-end space-x-3">
         <button 
-          @click="$emit('close')" 
+          @click="cancel" 
           class="btn bg-background-lighter hover:bg-gray-700 text-white"
         >
           Cancel
@@ -51,19 +48,41 @@
           Add Words
         </button>
       </div>
-    </div>
-  </div>
+    </template>
+  </BaseModal>
 </template>
 
 <script>
+import BaseModal from '@/components/base/BaseModal.vue';
+import BaseTextarea from '@/components/base/BaseTextarea.vue';
+
 export default {
   name: 'MultiWordsPaste',
+  components: {
+    BaseModal,
+    BaseTextarea
+  },
+  props: {
+    modelValue: {
+      type: Boolean,
+      default: false
+    }
+  },
+  emits: ['add-words', 'update:modelValue', 'error'],
   data() {
     return {
       textInput: ''
     }
   },
   computed: {
+    showModal: {
+      get() {
+        return this.modelValue;
+      },
+      set(value) {
+        this.$emit('update:modelValue', value);
+      }
+    },
     parsedWords() {
       if (!this.textInput.trim()) return []
       return this.textInput
@@ -72,7 +91,6 @@ export default {
         .filter(word => word.length > 0)
     }
   },
-  emits: ['add-words', 'close', 'error'],
   methods: {
     // Handle file import
     handleFileImport(event) {
@@ -94,6 +112,18 @@ export default {
       if (this.parsedWords.length === 0) return
       
       this.$emit('add-words', this.parsedWords)
+      this.closeModal()
+    },
+    
+    // Close modal
+    closeModal() {
+      this.showModal = false
+      this.textInput = ''
+    },
+    
+    // Cancel action
+    cancel() {
+      this.closeModal()
     }
   }
 }
