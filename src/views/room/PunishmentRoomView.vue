@@ -98,13 +98,41 @@
               </div>
             </div>
             
-            <!-- Add from Punishment Set -->
-            <PunishmentSetSelector
-              :creator-sets="creatorPunishmentSets"
-              :player-sets="playerPunishmentSets"
-              @apply-creator-set="applyCreatorSet"
-              @apply-player-set="applyPlayerSet"
-            />
+            <!-- Add from Creator Punishment Set -->
+            <div class="mb-4">
+              <label class="text-sm font-medium mb-2 block">Creator Punishment Sets</label>
+              <select v-model="selectedCreatorSet" class="form-control mb-2">
+                <option value="">Select a set...</option>
+                <option v-for="set in wordSetStore.creatorPunishmentSets" :key="set.id" :value="set.id">
+                  {{ set.name }} ({{ set.items.length }})
+                </option>
+              </select>
+              <button 
+                @click="applyCreatorSet" 
+                class="btn bg-blue-600 hover:bg-blue-700 text-white w-full mb-4"
+                :disabled="!selectedCreatorSet"
+              >
+                Apply to Creator Side
+              </button>
+            </div>
+            
+            <!-- Add from Player Punishment Set -->
+            <div class="mb-4">
+              <label class="text-sm font-medium mb-2 block">Player Punishment Sets</label>
+              <select v-model="selectedPlayerSet" class="form-control mb-2">
+                <option value="">Select a set...</option>
+                <option v-for="set in wordSetStore.playerPunishmentSets" :key="set.id" :value="set.id">
+                  {{ set.name }} ({{ set.items.length }})
+                </option>
+              </select>
+              <button 
+                @click="applyPlayerSet" 
+                class="btn bg-green-600 hover:bg-green-700 text-white w-full mb-4"
+                :disabled="!selectedPlayerSet"
+              >
+                Apply to Player Side
+              </button>
+            </div>
             
             <!-- Manual Cell Entry -->
             <div class="mb-6">
@@ -215,11 +243,11 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { usePunishmentRoomStore } from '@/stores/punishment-room'
 import { useNotificationStore } from '@/stores/notification'
+import { useWordSetStore } from '@/stores/word-sets'
 import PunishmentGridEditor from '@/components/punishment/PunishmentGridEditor.vue'
 import ActivePunishmentGrid from '@/components/punishment/ActivePunishmentGrid.vue'
 import PunishmentCellEditor from '@/components/punishment/PunishmentCellEditor.vue'
 import PunishmentPlayerList from '@/components/punishment/PunishmentPlayerList.vue'
-import PunishmentSetSelector from '@/components/punishment/PunishmentSetSelector.vue'
 
 export default {
   name: 'PunishmentRoomView',
@@ -227,14 +255,14 @@ export default {
     PunishmentGridEditor,
     ActivePunishmentGrid,
     PunishmentCellEditor,
-    PunishmentPlayerList,
-    PunishmentSetSelector
+    PunishmentPlayerList
   },
   setup() {
     const route = useRoute()
     const router = useRouter()
     const roomStore = usePunishmentRoomStore()
     const notificationStore = useNotificationStore()
+    const wordSetStore = useWordSetStore()
     
     // Room ID from route params
     const roomId = route.params.id
@@ -255,8 +283,8 @@ export default {
     })
     
     // Punishment sets selection
-    const creatorPunishmentSets = ref([])
-    const playerPunishmentSets = ref([])
+    const selectedCreatorSet = ref('')
+    const selectedPlayerSet = ref('')
     
     // Computed properties
     const roomData = computed(() => roomStore.currentRoom)
@@ -269,8 +297,12 @@ export default {
       loading.value = true
       
       try {
+        // Load the room
         await roomStore.loadRoom(roomId)
-        loadPunishmentSets()
+        
+        // Load word sets
+        await wordSetStore.loadWordSets()
+        
         loading.value = false
       } catch (error) {
         console.error('Error loading room:', error)
@@ -278,31 +310,6 @@ export default {
         router.push('/dashboard')
       }
     })
-    
-    // Load punishment sets from localStorage
-    function loadPunishmentSets() {
-      // Load creator punishment sets
-      const storedCreatorSets = localStorage.getItem('bingoCreatorPunishmentSets')
-      if (storedCreatorSets) {
-        try {
-          creatorPunishmentSets.value = JSON.parse(storedCreatorSets)
-        } catch (error) {
-          console.error('Failed to parse creator punishment sets:', error)
-          creatorPunishmentSets.value = []
-        }
-      }
-      
-      // Load player punishment sets
-      const storedPlayerSets = localStorage.getItem('bingoPlayerPunishmentSets')
-      if (storedPlayerSets) {
-        try {
-          playerPunishmentSets.value = JSON.parse(storedPlayerSets)
-        } catch (error) {
-          console.error('Failed to parse player punishment sets:', error)
-          playerPunishmentSets.value = []
-        }
-      }
-    }
     
     // Edit a cell
     function editCell({row, col, side}) {
@@ -381,12 +388,14 @@ export default {
     }
     
     // Apply creator punishment set
-    async function applyCreatorSet(setIndex) {
-      if (typeof setIndex !== 'number') return
+    async function applyCreatorSet() {
+      if (!selectedCreatorSet.value) return
       
-      const set = creatorPunishmentSets.value[setIndex]
+      const selectedSet = wordSetStore.creatorPunishmentSets.find(
+        set => set.id === selectedCreatorSet.value
+      )
       
-      if (!set || !set.items || set.items.length === 0) {
+      if (!selectedSet || !selectedSet.items || selectedSet.items.length === 0) {
         notificationStore.showNotification('Selected set is empty', 'error')
         return
       }
@@ -408,15 +417,20 @@ export default {
       }
       
       let successCount = 0
-      let setIndex2 = 0
+      let itemIndex = 0
       
       // Add items to empty cells
-      for (let i = 0; i < Math.min(emptyCells.length, set.items.length); i++) {
+      for (let i = 0; i < Math.min(emptyCells.length, selectedSet.items.length); i++) {
         const position = emptyCells[i]
-        const entry = set.items[setIndex2++ % set.items.length]
+        const entry = selectedSet.items[itemIndex++ % selectedSet.items.length]
         
         try {
-          const result = await roomStore.addCell(position, entry.phrase, entry.punishment, 'left')
+          const result = await roomStore.addCell(
+            position, 
+            entry.phrase, 
+            entry.punishment, 
+            'left'
+          )
           if (result.success) {
             successCount++
           }
@@ -427,18 +441,21 @@ export default {
       
       if (successCount > 0) {
         notificationStore.showNotification(`Added ${successCount} creator cells`, 'success')
+        selectedCreatorSet.value = '' // Reset selection
       } else {
         notificationStore.showNotification('Failed to add cells', 'error')
       }
     }
     
     // Apply player punishment set
-    async function applyPlayerSet(setIndex) {
-      if (typeof setIndex !== 'number') return
+    async function applyPlayerSet() {
+      if (!selectedPlayerSet.value) return
       
-      const set = playerPunishmentSets.value[setIndex]
+      const selectedSet = wordSetStore.playerPunishmentSets.find(
+        set => set.id === selectedPlayerSet.value
+      )
       
-      if (!set || !set.items || set.items.length === 0) {
+      if (!selectedSet || !selectedSet.items || selectedSet.items.length === 0) {
         notificationStore.showNotification('Selected set is empty', 'error')
         return
       }
@@ -460,15 +477,20 @@ export default {
       }
       
       let successCount = 0
-      let setIndex2 = 0
+      let itemIndex = 0
       
       // Add items to empty cells
-      for (let i = 0; i < Math.min(emptyCells.length, set.items.length); i++) {
+      for (let i = 0; i < Math.min(emptyCells.length, selectedSet.items.length); i++) {
         const position = emptyCells[i]
-        const entry = set.items[setIndex2++ % set.items.length]
+        const entry = selectedSet.items[itemIndex++ % selectedSet.items.length]
         
         try {
-          const result = await roomStore.addCell(position, entry.phrase, entry.punishment, 'right')
+          const result = await roomStore.addCell(
+            position, 
+            entry.phrase, 
+            entry.punishment, 
+            'right'
+          )
           if (result.success) {
             successCount++
           }
@@ -479,6 +501,7 @@ export default {
       
       if (successCount > 0) {
         notificationStore.showNotification(`Added ${successCount} player cells`, 'success')
+        selectedPlayerSet.value = '' // Reset selection
       } else {
         notificationStore.showNotification('Failed to add cells', 'error')
       }
@@ -609,8 +632,9 @@ export default {
       editingCellPosition,
       editingCellSide,
       newCell,
-      creatorPunishmentSets,
-      playerPunishmentSets,
+      selectedCreatorSet,
+      selectedPlayerSet,
+      wordSetStore,
       editCell,
       cancelEdit,
       saveCell,
