@@ -1,10 +1,15 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { db } from '@/firebase'
+import { useAuthStore } from '@/stores/auth'
+import { useNotificationStore } from '@/stores/notification'
 import { 
   doc, 
   collection, 
   getDoc, 
+  getDocs,
+  query,
+  where,
   setDoc, 
   updateDoc, 
   arrayUnion, 
@@ -13,6 +18,10 @@ import {
 } from 'firebase/firestore'
 
 export const usePunishmentRoomStore = defineStore('punishmentRoom', () => {
+  // Get dependencies
+  const authStore = useAuthStore()
+  const notificationStore = useNotificationStore()
+  
   // State
   const currentRoom = ref(null)
   const loading = ref(false)
@@ -51,6 +60,45 @@ export const usePunishmentRoomStore = defineStore('punishmentRoom', () => {
     }
   }
   
+  /**
+   * Load all rooms created by the current user
+   */
+  async function loadUserRooms() {
+    loading.value = true
+    error.value = null
+    
+    try {
+      const userId = authStore.user?.uid
+      
+      if (!userId) {
+        notificationStore.showNotification('You must be logged in to view your rooms', 'error')
+        return []
+      }
+      
+      // Query rooms created by this user
+      const roomsRef = collection(db, 'punishmentRooms')
+      const q = query(roomsRef, where('creatorId', '==', userId))
+      const snapshot = await getDocs(q)
+      
+      // Convert snapshot to array
+      const rooms = []
+      snapshot.forEach((doc) => {
+        rooms.push({
+          id: doc.id,
+          ...doc.data()
+        })
+      })
+      
+      loading.value = false
+      return rooms
+    } catch (err) {
+      console.error('Error loading user punishment rooms:', err)
+      error.value = err.message
+      loading.value = false
+      return []
+    }
+  }
+  
   // Create a new punishment room
   async function createRoom(gridHeight = 3) {
     loading.value = true
@@ -72,6 +120,7 @@ export const usePunishmentRoomStore = defineStore('punishmentRoom', () => {
       // Create the room document
       const roomData = {
         createdAt: serverTimestamp(),
+        creatorId: authStore.user?.uid || 'unknown-user',
         status: 'setup',
         gridHeight: gridHeight,
         grid: {}, // Will contain the cells with phrases and punishments
@@ -437,6 +486,7 @@ export const usePunishmentRoomStore = defineStore('punishmentRoom', () => {
     
     // Methods
     loadRoom,
+    loadUserRooms,
     createRoom,
     addCell,
     removeCell,
