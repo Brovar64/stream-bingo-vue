@@ -1,6 +1,6 @@
 <template>
   <div class="card shadow-lg">
-    <div class="flex justify-between items-center mb-4">
+    <div class="flex justify-between items-center mb-6">
       <h2 class="text-xl font-semibold">Punishment Bingo</h2>
       <div class="flex items-center gap-2">
         <button class="btn-icon" title="Fullscreen" @click="toggleFullscreen">
@@ -31,6 +31,12 @@
             >
               <div v-if="cellContent(`${row-1}_${col-1}`)">
                 <div class="cell-content">
+                  <!-- Cell label indicator -->
+                  <div class="cell-indicator">
+                    <span v-if="col <= 2" class="creator-indicator">HOST</span>
+                    <span v-else class="player-indicator">PLAYER</span>
+                  </div>
+                  
                   <div class="phrase">{{ cellContent(`${row-1}_${col-1}`).phrase }}</div>
                   
                   <div class="punishment-box">
@@ -39,14 +45,12 @@
                   </div>
                   
                   <!-- Voting UI -->
-                  <div v-if="isCellCalled(`${row-1}_${col-1}`) && !isPunishmentCompleted(`${row-1}_${col-1}`)">
-                    <div class="voting-container">
-                      <PunishmentVotingUI
-                        :votes="cellContent(`${row-1}_${col-1}`).votes || { yes: 0, no: 0 }"
-                        :user-voted="getUserVote(`${row-1}_${col-1}`)"
-                        @vote="(vote) => $emit('vote', `${row-1}_${col-1}`, vote)"
-                      />
-                    </div>
+                  <div v-if="isCellCalled(`${row-1}_${col-1}`) && !isPunishmentCompleted(`${row-1}_${col-1}`)" class="voting-container">
+                    <PunishmentVotingUI
+                      :votes="cellContent(`${row-1}_${col-1}`).votes || { yes: 0, no: 0 }"
+                      :user-voted="getUserVote(`${row-1}_${col-1}`)"
+                      @vote="(vote) => $emit('vote', `${row-1}_${col-1}`, vote)"
+                    />
                   </div>
                   
                   <!-- Completed badge -->
@@ -169,8 +173,8 @@ export default {
 /* Grid Layout */
 .grid-container {
   @apply relative rounded-lg bg-background-card transition-all duration-300 ease-in-out;
-  height: calc(100vh - 200px);
-  max-height: 80vh;
+  height: calc(100vh - 300px);
+  max-height: 700px;
   display: flex;
   flex-direction: column;
 }
@@ -200,7 +204,7 @@ export default {
 .punishment-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  grid-gap: 10px;
+  grid-gap: 8px;
   @apply p-4 bg-background-card rounded-lg flex-1 overflow-y-auto;
 }
 
@@ -208,7 +212,6 @@ export default {
   aspect-ratio: 1;
   @apply bg-background-lighter rounded-lg p-0 relative cursor-default transition-all duration-200 shadow-md overflow-hidden flex items-center justify-center;
   min-height: 140px;
-  height: 100%;
 }
 
 .creator-side {
@@ -225,6 +228,22 @@ export default {
 
 .cell-content {
   @apply h-full w-full flex flex-col p-3 relative;
+}
+
+.cell-indicator {
+  @apply absolute -top-1 -right-1 z-10;
+}
+
+.creator-indicator, .player-indicator {
+  @apply text-[0.6rem] font-bold tracking-wider py-1 px-2 opacity-90 rounded-bl-lg;
+}
+
+.creator-indicator {
+  @apply bg-blue-600 text-white;
+}
+
+.player-indicator {
+  @apply bg-green-600 text-white;
 }
 
 .phrase {
@@ -304,7 +323,7 @@ export default {
 /* Media queries for responsive layout */
 @media (max-width: 768px) {
   .grid-container {
-    height: calc(100vh - 180px);
+    height: calc(100vh - 250px);
   }
   
   .grid-cell {
