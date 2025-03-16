@@ -78,11 +78,11 @@
       
       <!-- Game Grid -->
       <div class="card mb-6">
-        <h2 class="text-xl font-semibold mb-4">Punishment Bingo Board</h2>
-        
         <div class="grid-container active-mode">
-          <div class="side-label left-label">Host Side</div>
-          <div class="side-label right-label">Players Side</div>
+          <div class="grid-header">
+            <div class="side-label left-label">Host Side</div>
+            <div class="side-label right-label">Players Side</div>
+          </div>
           
           <div class="punishment-grid" :style="`grid-template-rows: repeat(${roomData.gridHeight}, 1fr);`">
             <!-- Grid cells -->
@@ -109,14 +109,14 @@
                       
                       <div class="vote-buttons">
                         <button 
-                          @click="votePunishment(`${row-1}_${col-1}`, 'yes')" 
+                          @click.stop="votePunishment(`${row-1}_${col-1}`, 'yes')" 
                           :class="['vote-btn yes', hasVoted(`${row-1}_${col-1}`, 'yes') ? 'voted' : '']"
                           title="Vote that punishment was completed"
                         >
                           Completed
                         </button>
                         <button 
-                          @click="votePunishment(`${row-1}_${col-1}`, 'no')" 
+                          @click.stop="votePunishment(`${row-1}_${col-1}`, 'no')" 
                           :class="['vote-btn no', hasVoted(`${row-1}_${col-1}`, 'no') ? 'voted' : '']"
                           title="Vote that punishment was not completed"
                         >
@@ -318,27 +318,25 @@ onUnmounted(() => {
 /* Grid Layout */
 .grid-container {
   @apply relative my-6;
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  grid-template-areas: "labels labels" "grid grid";
+}
+
+.grid-header {
+  @apply flex mb-0;
 }
 
 .side-label {
-  @apply py-2 text-center font-semibold text-sm;
+  @apply py-2 text-center font-semibold text-sm flex-1;
 }
 
 .left-label {
-  grid-area: left-label;
   @apply bg-blue-500 bg-opacity-20 rounded-t-lg;
 }
 
 .right-label {
-  grid-area: right-label;
   @apply bg-green-500 bg-opacity-20 rounded-t-lg;
 }
 
 .punishment-grid {
-  grid-area: grid;
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   grid-gap: 8px;
@@ -381,10 +379,11 @@ onUnmounted(() => {
 
 .cell-content {
   @apply h-full flex flex-col justify-between;
+  font-size: 0.85rem;
 }
 
 .phrase {
-  @apply font-medium text-sm mb-2;
+  @apply font-medium mb-1;
 }
 
 .punishment {
