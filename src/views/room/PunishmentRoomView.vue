@@ -1,3 +1,4 @@
+
 <template>
   <div class="container py-8">
     <!-- Loading state -->
@@ -404,7 +405,6 @@ export default {
         }
         
         console.log("Found set:", selectedSet.name, "with", selectedSet.items.length, "items");
-        console.log("First item sample:", selectedSet.items[0]);
         
         if (!selectedSet.items || selectedSet.items.length === 0) {
           throw new Error('Selected set is empty');
@@ -427,24 +427,26 @@ export default {
         
         console.log("Found", emptyCells.length, "empty cells");
         
+        // Separate punishments and phrases with a 50/50 split of items
+        const items = [...selectedSet.items];
+        const halfLength = Math.ceil(items.length / 2);
+        const phrases = items.slice(0, halfLength);
+        const punishments = items.slice(halfLength);
+        
         let successCount = 0;
         
-        // Add items to empty cells
-        for (let i = 0; i < Math.min(emptyCells.length, selectedSet.items.length); i++) {
+        // Fill as many cells as possible with random combinations
+        for (let i = 0; i < Math.min(emptyCells.length, Math.min(phrases.length, punishments.length)); i++) {
           const position = emptyCells[i];
-          const entry = selectedSet.items[i];
+          const phrase = phrases[i % phrases.length];
+          const punishment = punishments[i % punishments.length];
           
-          if (!entry || !entry.phrase || !entry.punishment) {
-            console.warn('Invalid entry format at index', i, entry);
-            continue;
-          }
-          
-          console.log("Adding cell at position", position, "with entry", entry);
+          console.log("Adding cell at position", position, "with phrase:", phrase, "punishment:", punishment);
           
           const result = await roomStore.addCell(
             position, 
-            entry.phrase, 
-            entry.punishment, 
+            phrase, 
+            punishment, 
             'left'
           );
           
@@ -487,7 +489,6 @@ export default {
         }
         
         console.log("Found set:", selectedSet.name, "with", selectedSet.items.length, "items");
-        console.log("First item sample:", selectedSet.items[0]);
         
         if (!selectedSet.items || selectedSet.items.length === 0) {
           throw new Error('Selected set is empty');
@@ -510,24 +511,26 @@ export default {
         
         console.log("Found", emptyCells.length, "empty cells");
         
+        // Separate punishments and phrases with a 50/50 split of items
+        const items = [...selectedSet.items];
+        const halfLength = Math.ceil(items.length / 2);
+        const phrases = items.slice(0, halfLength);
+        const punishments = items.slice(halfLength);
+        
         let successCount = 0;
         
-        // Add items to empty cells
-        for (let i = 0; i < Math.min(emptyCells.length, selectedSet.items.length); i++) {
+        // Fill as many cells as possible with random combinations
+        for (let i = 0; i < Math.min(emptyCells.length, Math.min(phrases.length, punishments.length)); i++) {
           const position = emptyCells[i];
-          const entry = selectedSet.items[i];
+          const phrase = phrases[i % phrases.length];
+          const punishment = punishments[i % punishments.length];
           
-          if (!entry || !entry.phrase || !entry.punishment) {
-            console.warn('Invalid entry format at index', i, entry);
-            continue;
-          }
-          
-          console.log("Adding cell at position", position, "with entry", entry);
+          console.log("Adding cell at position", position, "with phrase:", phrase, "punishment:", punishment);
           
           const result = await roomStore.addCell(
             position, 
-            entry.phrase, 
-            entry.punishment, 
+            phrase, 
+            punishment, 
             'right'
           );
           
