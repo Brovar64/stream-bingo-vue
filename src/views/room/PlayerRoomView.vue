@@ -95,12 +95,20 @@
         
         <div v-else-if="!hasValidPlayerGrid" class="text-center py-8">
           <p class="text-gray-400 mb-6">We couldn't load your bingo board. Please try reloading it.</p>
-          <button 
-            @click="loadPlayerGrid" 
-            class="btn bg-primary hover:bg-primary-dark text-white"
-          >
-            Reload Board
-          </button>
+          <div class="flex flex-col space-y-3">
+            <button 
+              @click="loadPlayerGrid" 
+              class="btn bg-primary hover:bg-primary-dark text-white"
+            >
+              Reload Board
+            </button>
+            <button 
+              @click="forceGenerateGrid" 
+              class="btn bg-warning hover:bg-warning-dark text-white"
+            >
+              Force Generate Board
+            </button>
+          </div>
         </div>
         
         <div v-else>
@@ -164,6 +172,9 @@ import { useRoute, useRouter } from 'vue-router'
 import { useRoomStore } from '@/stores/room'
 import { useNotificationStore } from '@/stores/notification'
 import { useAuthStore } from '@/stores/auth'
+import { generateBingoGrid } from '@/utils/gridUtils'
+import { doc, updateDoc } from 'firebase/firestore'
+import { db } from '@/firebase'
 
 export default {
   name: 'PlayerRoomView',
@@ -358,8 +369,7 @@ export default {
         // After multiple attempts with no success, show error
         if (boardLoadAttempts.value >= 3 && !hasValidPlayerGrid.value) {
           console.log('[PLAYER ROOM] Failed to load grid after multiple attempts')
-          loadError.value = true
-          loadErrorMessage.value = 'Unable to load your bingo board. The game may not be properly set up.'
+          loadError.value = false // Set to false to show the retry buttons instead of error
           loadingPlayerGrid.value = false
           return false
         }
@@ -369,9 +379,64 @@ export default {
       } catch (error) {
         console.error('[PLAYER ROOM] Error loading player grid:', error)
         if (boardLoadAttempts.value >= 3) {
-          loadError.value = true
-          loadErrorMessage.value = error.message || 'Failed to load your bingo board'
+          loadError.value = false // Set to false to show the retry buttons instead of error
         }
+        loadingPlayerGrid.value = false
+        return false
+      }
+    }
+    
+    // Force generate a grid for the player
+    async function forceGenerateGrid() {
+      console.log('[PLAYER ROOM] Force generating grid for player:', username.value)
+      loadingPlayerGrid.value = true
+      
+      try {
+        if (!roomData.value || !isRoomActive.value) {
+          throw new Error('Room must be active to generate a grid')
+        }
+        
+        // Generate a new grid
+        const words = roomData.value.words || []
+        const gridSize = roomData.value.gridSize || 5
+        
+        if (words.length < gridSize * gridSize) {
+          throw new Error(`Not enough words to generate a grid. Have ${words.length}, need ${gridSize * gridSize}`)
+        }
+        
+        // Generate the grid
+        const generatedGrid = generateBingoGrid(words, gridSize)
+        
+        if (!generatedGrid) {
+          throw new Error('Failed to generate grid')
+        }
+        
+        console.log(`[PLAYER ROOM] Successfully generated grid with ${Object.keys(generatedGrid).length} cells`)
+        
+        // Initialize playerGrids if it doesn't exist
+        if (!roomData.value.playerGrids) {
+          const roomRef = doc(db, 'rooms', roomData.value.id)
+          await updateDoc(roomRef, { playerGrids: {} })
+        }
+        
+        // Update the room document with the new grid
+        const roomRef = doc(db, 'rooms', roomData.value.id)
+        await updateDoc(roomRef, {
+          [`playerGrids.${username.value}`]: generatedGrid
+        })
+        
+        console.log('[PLAYER ROOM] Player grid saved to database')
+        
+        // Reload the room to get the updated data
+        await roomStore.loadRoom(roomId)
+        
+        // Notify the user
+        notificationStore.showNotification('Successfully generated a new bingo board!', 'success')
+        loadingPlayerGrid.value = false
+        return true
+      } catch (error) {
+        console.error('[PLAYER ROOM] Error forcing grid generation:', error)
+        notificationStore.showNotification(`Error generating grid: ${error.message}`, 'error')
         loadingPlayerGrid.value = false
         return false
       }
@@ -496,7 +561,8 @@ export default {
       getCellWord,
       getCellState,
       retryLoading,
-      loadPlayerGrid
+      loadPlayerGrid,
+      forceGenerateGrid
     }
   }
 }
