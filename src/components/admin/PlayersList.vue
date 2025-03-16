@@ -1,16 +1,20 @@
 <template>
-  <div class="card">
-    <h2 class="text-xl font-semibold mb-4">Players</h2>
+  <BaseCard>
+    <template #header>
+      <h2 class="text-xl font-semibold">Players</h2>
+    </template>
+    
     <div v-if="!players || players.length === 0" class="text-center py-4 text-gray-400">
       No players have joined yet.
     </div>
+    
     <div v-else class="space-y-2">
       <div
-          v-for="(player, index) in players"
-          :key="index"
-          :class="['player-item',
-                 isPlayerSelected(player.nickname) ? 'selected' : '',
-                 isPlayerWinner(player.nickname) ? 'winner' : '']"
+        v-for="(player, index) in players"
+        :key="index"
+        :class="['player-item',
+               isPlayerSelected(player.nickname) ? 'selected' : '',
+               isPlayerWinner(player.nickname) ? 'winner' : '']"
       >
         <div class="player-header" @click="togglePlayerGrid(player.nickname)">
           <div>
@@ -32,27 +36,29 @@
 
         <!-- Inline Player Grid -->
         <PlayerGridView
-            v-if="isPlayerSelected(player.nickname) && playerGrids && playerGrids[player.nickname]"
-            :playerName="player.nickname"
-            :gridSize="gridSize"
-            :playerGrid="playerGrids[player.nickname]"
-            :isWinner="isPlayerWinner(player.nickname)"
-            :compact="true"
-            @close="$emit('player-selected', null)"
-            class="player-grid-view"
+          v-if="isPlayerSelected(player.nickname) && playerGrids && playerGrids[player.nickname]"
+          :playerName="player.nickname"
+          :gridSize="gridSize"
+          :playerGrid="playerGrids[player.nickname]"
+          :isWinner="isPlayerWinner(player.nickname)"
+          :compact="true"
+          @close="$emit('player-selected', null)"
+          class="player-grid-view"
         />
       </div>
     </div>
-  </div>
+  </BaseCard>
 </template>
 
 <script>
-import PlayerGridView from '@/components/bingo/PlayerGridView.vue'
+import PlayerGridView from '@/components/bingo/PlayerGridView.vue';
+import BaseCard from '@/components/base/BaseCard.vue';
 
 export default {
   name: 'PlayersList',
   components: {
-    PlayerGridView
+    PlayerGridView,
+    BaseCard
   },
   props: {
     players: {
