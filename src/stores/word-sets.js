@@ -114,11 +114,49 @@ export const useWordSetStore = defineStore('wordSet', () => {
       
       console.log('Saving set of type:', setData.type);
       console.log('Set items count:', setData.items.length);
-      console.log('First item example:', setData.items[0]);
+      
+      // Log the first item for debugging
+      if (setData.items.length > 0) {
+        console.log('First item example:', JSON.stringify(setData.items[0]));
+      }
+      
+      // CRITICAL FIX: Make sure the items are in the correct format for Firebase
+      // For punishment sets, we need to ensure each item is a plain object with phrase and punishment
+      let processedItems = setData.items;
+      if (setData.type === 'playerPunishment' || setData.type === 'creatorPunishment') {
+        // Force items to be plain objects that Firebase can handle
+        processedItems = setData.items.map(item => {
+          // If item is already a plain object with phrase and punishment, use it
+          if (item && typeof item === 'object' && 'phrase' in item && 'punishment' in item) {
+            return {
+              phrase: String(item.phrase),
+              punishment: String(item.punishment)
+            };
+          }
+          // If it's a string in format "phrase|punishment", parse it
+          else if (typeof item === 'string' && item.includes('|')) {
+            const parts = item.split('|');
+            return {
+              phrase: parts[0].trim(),
+              punishment: parts[1].trim()
+            };
+          }
+          // Otherwise return a placeholder (should not happen)
+          else {
+            console.error('Invalid item format:', item);
+            return {
+              phrase: 'Invalid item',
+              punishment: 'Please check format'
+            };
+          }
+        });
+        
+        console.log('Processed items for Firebase:', processedItems.slice(0, 2));
+      }
       
       // Enforce item limit
-      if (setData.items.length > MAX_ITEMS_PER_SET) {
-        setData.items = setData.items.slice(0, MAX_ITEMS_PER_SET)
+      if (processedItems.length > MAX_ITEMS_PER_SET) {
+        processedItems = processedItems.slice(0, MAX_ITEMS_PER_SET)
         notificationStore.showNotification(`Set limited to ${MAX_ITEMS_PER_SET} items`, 'warning')
       }
       
@@ -146,7 +184,7 @@ export const useWordSetStore = defineStore('wordSet', () => {
       
       const dataToSave = {
         name: setData.name,
-        items: setData.items,
+        items: processedItems, // Use processed items here
         type: setData.type,
         ownerId: authStore.user.uid,
         updatedAt: now
@@ -157,8 +195,16 @@ export const useWordSetStore = defineStore('wordSet', () => {
         dataToSave.createdAt = now
       }
       
+      console.log('Saving data to Firestore:', {
+        id: setId,
+        name: dataToSave.name,
+        type: dataToSave.type,
+        itemsCount: dataToSave.items.length
+      });
+      
       // Save to Firestore
       await setDoc(doc(db, 'wordSets', setId), dataToSave, { merge: !!existingId })
+      console.log('Successfully saved to Firestore');
       
       // Reload sets to update local state
       await loadWordSets()
