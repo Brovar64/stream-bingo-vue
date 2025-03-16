@@ -3,7 +3,7 @@
     class="status-badge"
     :class="[getBadgeClass, sizeClass]"
   >
-    {{ displayText }}
+    {{ statusText }}
   </span>
 </template>
 
