@@ -10,425 +10,128 @@
     <!-- Room management interface -->
     <div v-else>
       <!-- Header section -->
-      <div class="flex flex-col md:flex-row md:justify-between md:items-center mb-6">
-        <div>
-          <div class="flex items-center gap-3 mb-2">
-            <h1 class="title">Room: {{ roomData.id }}</h1>
-            <span
-                :class="['status-badge', roomData.status === 'active' ? 'bg-success' : 'bg-warning']"
-            >
-              {{ roomData.status === 'active' ? 'Active' : 'Setup' }}
-            </span>
-          </div>
-          <p class="subtitle">{{ roomData.gridSize }}x{{ roomData.gridSize }} Grid</p>
-        </div>
-
-        <div class="flex flex-wrap gap-3 mt-4 md:mt-0 items-center">
-          <!-- Room Code Display - Moved to header when room is active -->
-          <div v-if="isRoomActive" class="flex items-center bg-background-lighter px-3 py-2 rounded mr-3">
-            <div class="mr-3">
-              <div class="text-xs text-gray-400">Room Code:</div>
-              <div class="font-bold text-primary">{{ roomData.id }}</div>
-            </div>
-            <button
-                @click="copyRoomCode"
-                class="btn bg-background-card hover:bg-gray-700 text-white text-sm py-1 px-2"
-                title="Copy room code to clipboard"
-            >
-              Copy
-            </button>
-          </div>
-
-          <router-link to="/dashboard" class="btn bg-background-lighter hover:bg-gray-700 text-white">
-            Back to Dashboard
-          </router-link>
-
-          <button
-              v-if="isRoomSetup"
-              @click="startGame"
-              :disabled="wordCount < requiredWords"
-              :class="['btn', wordCount < requiredWords ? 'bg-gray-600 cursor-not-allowed' : 'btn-primary']"
-          >
-            Start Game
-          </button>
-
-          <button
-              v-if="isRoomActive"
-              @click="resetGame"
-              class="btn bg-warning hover:bg-yellow-700 text-white"
-          >
-            Reset Game
-          </button>
-        </div>
-      </div>
+      <RoomHeader
+        :room-data="roomData"
+        :is-room-active="isRoomActive"
+        :is-room-setup="isRoomSetup"
+        :word-count="wordCount"
+        :required-words="requiredWords"
+        @start-game="startGame"
+        @reset-game="resetGame"
+        @copy-room-code="copyRoomCode"
+      />
 
       <!-- Game statistics -->
-      <div v-if="isRoomActive" class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-        <div class="card p-4">
-          <h3 class="text-gray-400 text-sm mb-1">Players</h3>
-          <div class="text-2xl font-bold">{{ roomData.players?.length || 0 }}</div>
-        </div>
-        <div class="card p-4">
-          <h3 class="text-gray-400 text-sm mb-1">Pending Approvals</h3>
-          <div class="text-2xl font-bold">{{ roomData.pendingApprovals?.length || 0 }}</div>
-        </div>
-        <div class="card p-4">
-          <h3 class="text-gray-400 text-sm mb-1">Bingo Winners</h3>
-          <div class="text-2xl font-bold">{{ roomData.bingoWinners?.length || 0 }}</div>
-        </div>
-      </div>
+      <GameStats
+        v-if="isRoomActive"
+        :players-count="roomData.players?.length || 0"
+        :pending-approvals-count="roomData.pendingApprovals?.length || 0"
+        :winners-count="roomData.bingoWinners?.length || 0"
+      />
 
       <!-- Setup Mode Content -->
-      <div v-if="isRoomSetup">
-        <div class="card mb-6">
-          <h2 class="text-xl font-semibold mb-4">Add Bingo Words</h2>
-          <p class="text-sm text-gray-400 mb-4">
-            Add words or phrases that might happen during your stream.
-            <span class="text-warning">
-              You need {{ requiredWords }} words for a {{ roomData.gridSize }}x{{ roomData.gridSize }} grid.
-            </span>
-          </p>
-
-          <div class="mb-4">
-            <div class="progress-bar">
-              <div
-                  class="progress"
-                  :style="`width: ${(wordCount / requiredWords) * 100}%`"
-              ></div>
-            </div>
-            <div class="text-sm text-gray-400 mt-1">
-              {{ wordCount }} / {{ requiredWords }} words added
-            </div>
-          </div>
-
-          <div class="flex flex-wrap gap-3 mb-4">
-            <button
-                @click="showImportModal = true"
-                class="btn bg-background-lighter hover:bg-gray-700 text-white"
-                :disabled="wordSetStore.wordSets.length === 0"
-            >
-              Import Words
-            </button>
-
-            <button
-                @click="showPasteModal = true"
-                class="btn bg-background-lighter hover:bg-gray-700 text-white"
-            >
-              Paste Multiple Words
-            </button>
-          </div>
-
-          <form @submit.prevent="addWord" class="mb-4">
-            <div class="flex">
-              <input
-                  type="text"
-                  v-model="newWord"
-                  class="form-control flex-grow"
-                  placeholder="Enter a word or phrase"
-                  required
-              >
-              <button
-                  type="submit"
-                  class="btn btn-primary ml-2"
-                  :disabled="!newWord.trim()"
-              >
-                Add
-              </button>
-            </div>
-          </form>
-
-          <!-- Word list in 3 columns -->
-          <div class="word-list">
-            <div v-if="wordCount === 0" class="text-center text-gray-400 py-4">
-              No words added yet.
-            </div>
-            <div v-else class="grid grid-cols-1 md:grid-cols-3 gap-2">
-              <div
-                  v-for="(word, index) in roomData.words"
-                  :key="index"
-                  class="flex justify-between items-center bg-background-lighter p-2 rounded"
-              >
-                <span class="overflow-hidden text-ellipsis">{{ word }}</span>
-                <button
-                    @click="removeWord(index)"
-                    class="text-error hover:text-red-300 transition-colors ml-2 flex-shrink-0"
-                    title="Remove word"
-                >
-                  ✕
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
+      <SetupModePanel
+        v-if="isRoomSetup"
+        :words="roomData.words || []"
+        :required-words="requiredWords"
+        :grid-size="roomData.gridSize"
+        :no-word-sets="wordSetStore.wordSets.length === 0"
+        @add-word="addWord"
+        @remove-word="removeWord"
+        @open-import-modal="showImportModal = true"
+        @open-paste-modal="showPasteModal = true"
+      />
 
       <!-- Active Game Content - Two Column Layout -->
       <div v-if="isRoomActive" class="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        <!-- Left Column: Players - Changed to 1/4 of the screen -->
+        <!-- Left Column: Players -->
         <div class="lg:col-span-3">
-          <div class="card">
-            <h2 class="text-xl font-semibold mb-4">Players</h2>
-            <div v-if="!roomData.players || roomData.players.length === 0" class="text-center py-4 text-gray-400">
-              No players have joined yet.
-            </div>
-            <div v-else class="space-y-2">
-              <div
-                  v-for="(player, index) in roomData.players"
-                  :key="index"
-                  :class="['player-item',
-                         isPlayerSelected(player.nickname) ? 'selected' : '',
-                         isPlayerWinner(player.nickname) ? 'winner' : '']"
-              >
-                <div class="player-header" @click="togglePlayerGrid(player.nickname)">
-                  <div>
-                    <div class="flex items-center">
-                      <span class="font-medium">{{ player.nickname }}</span>
-                      <span v-if="isPlayerWinner(player.nickname)" class="ml-2 text-yellow-400">🏆 BINGO!</span>
-                    </div>
-                    <div class="text-xs text-gray-400 mt-1">
-                      <span v-if="getPlayerStats(player.nickname)">
-                        {{ getPlayerStats(player.nickname).approved }} / {{ roomData.gridSize * roomData.gridSize }} words marked
-                      </span>
-                      <span v-else>Joined: {{ formatTime(player.joinedAt) }}</span>
-                    </div>
-                  </div>
-                  <div class="player-expand-icon">
-                    {{ isPlayerSelected(player.nickname) ? '▼' : '▶' }}
-                  </div>
-                </div>
-
-                <!-- Inline Player Grid -->
-                <PlayerGridView
-                    v-if="isPlayerSelected(player.nickname) && roomData.playerGrids && roomData.playerGrids[player.nickname]"
-                    :playerName="player.nickname"
-                    :gridSize="roomData.gridSize"
-                    :playerGrid="roomData.playerGrids[player.nickname]"
-                    :isWinner="isPlayerWinner(player.nickname)"
-                    :compact="true"
-                    @close="selectedPlayer = null"
-                    class="player-grid-view"
-                />
-              </div>
-            </div>
-          </div>
+          <PlayersList
+            :players="roomData.players || []"
+            :player-grids="roomData.playerGrids || {}"
+            :winners="roomData.bingoWinners || []"
+            :selected-player="selectedPlayer"
+            :grid-size="roomData.gridSize"
+            @player-selected="selectedPlayer = $event"
+          />
         </div>
 
-        <!-- Right Column: Bingo Words and Approvals - Increased to fill remaining space -->
+        <!-- Right Column: Bingo Words and Approvals -->
         <div class="lg:col-span-9">
-          <!-- Words List in Grid Layout - Changed to 5 columns -->
-          <div class="card mb-6">
-            <h2 class="text-xl font-semibold mb-4">Bingo Words</h2>
-            <p class="text-sm text-gray-400 mb-4">
-              Click on a word to mark it as called out for all players.
-            </p>
-
-            <!-- Search and Sort Controls -->
-            <div class="flex flex-col sm:flex-row gap-3 mb-4">
-              <div class="flex-grow">
-                <input
-                    type="text"
-                    v-model="searchQuery"
-                    class="form-control w-full"
-                    placeholder="Search words..."
-                />
-              </div>
-              <div class="flex gap-2">
-                <button
-                    @click="sortBy = 'alphabetical'; sortOrder = sortOrder === 'asc' ? 'desc' : 'asc'"
-                    class="btn bg-background-lighter hover:bg-gray-700 text-white text-sm py-1 px-2"
-                    :class="{ 'bg-primary': sortBy === 'alphabetical' }"
-                >
-                  Sort A-Z
-                  <span v-if="sortBy === 'alphabetical'">
-                    {{ sortOrder === 'asc' ? '↑' : '↓' }}
-                  </span>
-                </button>
-                <button
-                    @click="sortBy = 'calledOut'; sortOrder = sortOrder === 'asc' ? 'desc' : 'asc'"
-                    class="btn bg-background-lighter hover:bg-gray-700 text-white text-sm py-1 px-2"
-                    :class="{ 'bg-primary': sortBy === 'calledOut' }"
-                >
-                  Sort by Status
-                  <span v-if="sortBy === 'calledOut'">
-                    {{ sortOrder === 'asc' ? '↑' : '↓' }}
-                  </span>
-                </button>
-              </div>
-            </div>
-
-            <div class="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-5 gap-2 p-1">
-              <div
-                  v-for="(word, index) in filteredAndSortedWords"
-                  :key="index"
-                  :class="['bingo-word-card', {
-                  'called-out': isWordCalledOut(word),
-                  'has-approvals': hasPendingApprovals(word)
-                }]"
-                  @click="callOutWord(word)"
-              >
-                <div class="bingo-word-content">{{ word }}</div>
-
-                <div class="bingo-word-status">
-                  <span v-if="isWordCalledOut(word)" class="called-out-icon">✓</span>
-                </div>
-
-                <!-- Approval indicators -->
-                <div v-if="hasPendingApprovals(word)" class="approval-indicators">
-                  <div
-                      v-for="(approval, approvalIndex) in getApprovalsForWord(word)"
-                      :key="approvalIndex"
-                      class="approval-badge"
-                      :title="`${approval.playerName} marked this word`"
-                  >
-                    {{ getInitial(approval.playerName) }}
-                    <div class="approval-actions">
-                      <button
-                          @click.stop="approvePlayerMark(getApprovalIndex(approval))"
-                          class="approve-btn"
-                          title="Approve"
-                      >✓</button>
-                      <button
-                          @click.stop="rejectPlayerMark(getApprovalIndex(approval))"
-                          class="reject-btn"
-                          title="Reject"
-                      >✕</button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div class="flex justify-between text-sm text-gray-400 mt-4">
-              <span>{{ calledOutWordsCount }} / {{ wordCount }} words called</span>
-              <span>Showing {{ filteredAndSortedWords.length }} of {{ wordCount }} words</span>
-              <button
-                  @click="resetCalledWords"
-                  class="text-primary hover:text-primary-light"
-              >
-                Reset Called Words
-              </button>
-            </div>
-          </div>
+          <!-- Words List in Grid Layout -->
+          <BingoWordsGrid
+            :words="filteredAndSortedWords"
+            :called-out-words="roomData.calledOutWords || []"
+            :pending-approvals="roomData.pendingApprovals || []"
+            :total-words="wordCount"
+            :sort-by="sortBy"
+            :sort-order="sortOrder"
+            @toggle-word-called-out="callOutWord"
+            @reset-called-words="resetCalledWords"
+            @approve-word="approveWord"
+            @reject-word="rejectWord"
+            @sort-change="handleSortChange"
+            @search-change="searchQuery = $event"
+          />
 
           <!-- Bingo Winners List -->
-          <div v-if="roomData.bingoWinners && roomData.bingoWinners.length > 0" class="card mb-6">
-            <h2 class="text-xl font-semibold mb-4">Bingo Winners</h2>
-            <div class="space-y-2">
-              <div
-                  v-for="(winner, index) in roomData.bingoWinners"
-                  :key="index"
-                  class="bg-background-lighter p-3 rounded-lg flex justify-between items-center"
-              >
-                <div class="flex items-center">
-                  <span class="text-yellow-400 text-2xl mr-3">🏆</span>
-                  <span class="font-medium">{{ winner }}</span>
-                </div>
-                <button
-                    @click="togglePlayerGrid(winner)"
-                    class="btn bg-primary hover:bg-primary-dark text-white text-sm py-1 px-2"
-                >
-                  {{ isPlayerSelected(winner) ? 'Hide Grid' : 'View Grid' }}
-                </button>
-              </div>
-            </div>
-          </div>
+          <WinnersPanel
+            :winners="roomData.bingoWinners || []"
+            :selected-player="selectedPlayer"
+            @player-selected="selectedPlayer = $event"
+          />
         </div>
       </div>
     </div>
 
     <!-- Word Set Importer Modal -->
-    <div v-if="showImportModal" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
-      <div class="bg-background-card rounded-lg shadow-lg w-full max-w-md p-6">
-        <div class="flex justify-between items-center mb-6">
-          <h2 class="text-xl font-bold">Import from Word Set</h2>
-          <button @click="showImportModal = false" class="text-gray-400 hover:text-white text-xl">
-            ✕
-          </button>
-        </div>
-
-        <div v-if="wordSetStore.wordSets.length === 0" class="text-center py-4 mb-6">
-          <p class="text-gray-400 mb-2">You don't have any word sets yet.</p>
-          <router-link to="/word-sets" class="text-primary hover:text-primary-light">
-            Create a word set first
-          </router-link>
-        </div>
-
-        <div v-else>
-          <div class="form-group mb-6">
-            <label for="wordSetSelect" class="block text-sm text-gray-400 mb-2">Select a Word Set</label>
-            <select
-                id="wordSetSelect"
-                v-model="selectedSetId"
-                class="form-control w-full"
-            >
-              <option value="">Select a set...</option>
-              <option v-for="set in wordSetStore.wordSets" :key="set.id" :value="set.id">
-                {{ set.name }} ({{ set.items.length }} words)
-              </option>
-            </select>
-          </div>
-
-          <div v-if="selectedSetId" class="mb-6">
-            <div class="flex justify-between items-center mb-2">
-              <h3 class="text-sm text-gray-400">Word List Preview</h3>
-              <span class="text-xs text-gray-500">{{ getSelectedSet ? getSelectedSet.items.length : 0 }} words</span>
-            </div>
-            <div class="bg-background-lighter p-3 rounded h-40 overflow-y-auto">
-              <div v-if="getSelectedSet">
-                <div v-for="(word, wordIndex) in getSelectedSet.items.slice(0, 10)" :key="wordIndex" class="text-sm mb-1">
-                  {{ word }}
-                </div>
-                <div v-if="getSelectedSet.items.length > 10" class="text-xs text-gray-500 italic mt-2">
-                  And {{ getSelectedSet.items.length - 10 }} more...
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div class="flex justify-end space-x-3">
-            <button
-                @click="showImportModal = false"
-                class="btn bg-background-lighter hover:bg-gray-700 text-white"
-            >
-              Cancel
-            </button>
-            <button
-                @click="importSet"
-                class="btn btn-primary"
-                :disabled="!selectedSetId"
-            >
-              Import Words
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
+    <WordSetImporter
+      v-model:visible="showImportModal"
+      :word-sets="wordSetStore.wordSets"
+      @import-set="importSet"
+    />
 
     <!-- Multi Words Paste Modal -->
     <MultiWordsPaste
-        v-if="showPasteModal"
-        v-model="multipleWords"
-        :parsedWords="parsedWords"
-        @close="showPasteModal = false"
-        @add-words="addMultipleWords"
-        @error="handleImportError"
+      v-if="showPasteModal"
+      v-model="multipleWords"
+      :parsed-words="parsedWords"
+      @close="showPasteModal = false"
+      @add-words="addMultipleWords"
+      @error="handleImportError"
     />
   </div>
 </template>
 
 <script>
-import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useRoomStore } from '@/stores/room/'
 import { useNotificationStore } from '@/stores/notification'
 import { useWordSetStore } from '@/stores/word-sets'
-import PlayerGridView from '@/components/bingo/PlayerGridView.vue'
+
+// Import existing components
 import MultiWordsPaste from '@/components/bingo/MultiWordsPaste.vue'
+
+// Import new components
+import RoomHeader from '@/components/admin/RoomHeader.vue'
+import GameStats from '@/components/admin/GameStats.vue'
+import SetupModePanel from '@/components/admin/SetupModePanel.vue'
+import PlayersList from '@/components/admin/PlayersList.vue'
+import BingoWordsGrid from '@/components/admin/BingoWordsGrid.vue'
+import WinnersPanel from '@/components/admin/WinnersPanel.vue'
+import WordSetImporter from '@/components/admin/WordSetImporter.vue'
 
 export default {
   name: 'AdminRoomView',
   components: {
-    PlayerGridView,
+    RoomHeader,
+    GameStats,
+    SetupModePanel,
+    PlayersList,
+    BingoWordsGrid,
+    WinnersPanel,
+    WordSetImporter,
     MultiWordsPaste
   },
   setup() {
@@ -462,12 +165,6 @@ export default {
     const wordCount = computed(() => roomData.value?.words?.length || 0)
     const requiredWords = computed(() => roomStore.requiredWords)
     const calledOutWordsCount = computed(() => roomData.value?.calledOutWords?.length || 0)
-
-    // Get the currently selected set
-    const getSelectedSet = computed(() => {
-      if (!selectedSetId.value) return null
-      return wordSetStore.wordSets.find(set => set.id === selectedSetId.value)
-    })
 
     // Filtered and sorted words
     const filteredAndSortedWords = computed(() => {
@@ -531,31 +228,16 @@ export default {
       }
     })
 
-    // Handle file import
-    function handleFileImport(event) {
-      const file = event.target.files[0]
-      if (!file) return
-
-      const reader = new FileReader()
-      reader.onload = e => {
-        multipleWords.value = e.target.result
-      }
-      reader.onerror = () => {
-        notificationStore.showNotification('Failed to read file', 'error')
-      }
-      reader.readAsText(file)
-    }
-
     // Handle import errors
     function handleImportError(message) {
       notificationStore.showNotification(message, 'error')
     }
 
     // Import words from a saved word set
-    async function importSet() {
-      if (!selectedSetId.value) return
+    async function importSet(setId) {
+      if (!setId) return
 
-      const selectedSet = wordSetStore.wordSets.find(set => set.id === selectedSetId.value)
+      const selectedSet = wordSetStore.wordSets.find(set => set.id === setId)
       if (!selectedSet || !selectedSet.items || selectedSet.items.length === 0) {
         notificationStore.showNotification('Selected word set is empty', 'error')
         return
@@ -601,57 +283,26 @@ export default {
       return roomData.value?.calledOutWords?.includes(word) || false
     }
 
-    // Check if player is a winner
-    function isPlayerWinner(playerName) {
-      return roomData.value?.bingoWinners?.includes(playerName) || false
+    // Handle sort change
+    function handleSortChange({ sortBy: newSortBy, sortOrder: newSortOrder }) {
+      sortBy.value = newSortBy
+      sortOrder.value = newSortOrder
     }
 
-    // Get player stats
-    function getPlayerStats(playerName) {
-      if (!roomData.value?.playerGrids?.[playerName]) return null
-
-      const grid = roomData.value.playerGrids[playerName]
-      const cells = Object.values(grid)
-
-      const marked = cells.filter(cell => cell.marked).length
-      const approved = cells.filter(cell => cell.marked && cell.approved).length
-      const pending = marked - approved
-
-      return { marked, approved, pending }
+    // Approve a player's mark
+    async function approveWord(approval) {
+      const index = getApprovalIndex(approval)
+      if (index >= 0) {
+        await roomStore.approvePlayerMark(index)
+      }
     }
 
-    // Format timestamp
-    function formatTime(timestamp) {
-      if (!timestamp) return 'Unknown'
-
-      const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp)
-      return date.toLocaleTimeString()
-    }
-
-    // Check if a player is selected (for toggling grid display)
-    function isPlayerSelected(playerName) {
-      return selectedPlayer.value === playerName
-    }
-
-    // Toggle player grid display
-    function togglePlayerGrid(playerName) {
-      selectedPlayer.value = selectedPlayer.value === playerName ? null : playerName
-    }
-
-    // Get first letter of player name for the badge
-    function getInitial(playerName) {
-      return playerName ? playerName.charAt(0).toUpperCase() : '?'
-    }
-
-    // Check if a word has pending approvals
-    function hasPendingApprovals(word) {
-      return getApprovalsForWord(word).length > 0
-    }
-
-    // Get all pending approvals for a specific word
-    function getApprovalsForWord(word) {
-      if (!roomData.value?.pendingApprovals) return []
-      return roomData.value.pendingApprovals.filter(approval => approval.word === word)
+    // Reject a player's mark
+    async function rejectWord(approval) {
+      const index = getApprovalIndex(approval)
+      if (index >= 0) {
+        await roomStore.rejectPlayerMark(index)
+      }
     }
 
     // Get the index of an approval in the pendingApprovals array
@@ -669,13 +320,11 @@ export default {
       roomStore.cleanup()
     })
 
-    // Methods
-
     // Add a word to the list
-    async function addWord() {
-      if (!newWord.value.trim()) return
+    async function addWord(word) {
+      if (!word.trim()) return
 
-      const success = await roomStore.addWord(newWord.value.trim())
+      const success = await roomStore.addWord(word.trim())
 
       if (success) {
         newWord.value = '' // Clear input on success
@@ -715,26 +364,11 @@ export default {
       }
     }
 
-    // Approve a player's mark
-    async function approvePlayerMark(index) {
-      await roomStore.approvePlayerMark(index)
-    }
-
-    // Reject a player's mark
-    async function rejectPlayerMark(index) {
-      await roomStore.rejectPlayerMark(index)
-    }
-
-    // View a player's grid
-    function viewPlayerGrid(playerName) {
-      selectedPlayer.value = playerName
-    }
-
     // Copy room code to clipboard
-    function copyRoomCode() {
-      if (!roomData.value?.id) return
+    function copyRoomCode(roomId) {
+      if (!roomId) return
 
-      navigator.clipboard.writeText(roomData.value.id)
+      navigator.clipboard.writeText(roomId)
           .then(() => {
             notificationStore.showNotification('Room code copied to clipboard', 'success')
           })
@@ -764,135 +398,21 @@ export default {
       sortBy,
       sortOrder,
       filteredAndSortedWords,
-      getSelectedSet,
       addWord,
       removeWord,
       startGame,
       resetGame,
-      approvePlayerMark,
-      rejectPlayerMark,
-      viewPlayerGrid,
+      approveWord,
+      rejectWord,
       copyRoomCode,
-      handleFileImport,
-      importSet,
       handleImportError,
+      importSet,
       addMultipleWords,
       callOutWord,
       resetCalledWords,
       isWordCalledOut,
-      isPlayerWinner,
-      getPlayerStats,
-      formatTime,
-      isPlayerSelected,
-      togglePlayerGrid,
-      getInitial,
-      hasPendingApprovals,
-      getApprovalsForWord,
-      getApprovalIndex
+      handleSortChange
     }
   }
 }
 </script>
-
-<style scoped>
-.status-badge {
-  @apply text-xs py-1 px-2 rounded-full text-white;
-}
-
-.progress-bar {
-  height: 8px;
-  background-color: theme('colors.background.lighter');
-  border-radius: 4px;
-  overflow: hidden;
-}
-
-.progress {
-  height: 100%;
-  background-color: #FF4081;
-  border-radius: 4px;
-  transition: width 0.3s ease;
-}
-
-/* Player list styling */
-.player-item {
-  @apply bg-background-lighter rounded-lg mb-2 overflow-hidden transition-all duration-200;
-}
-
-.player-item.selected {
-  @apply bg-primary bg-opacity-20;
-}
-
-.player-item.winner {
-  @apply border-2 border-yellow-400;
-}
-
-.player-header {
-  @apply flex justify-between items-center p-3 cursor-pointer;
-}
-
-.player-expand-icon {
-  @apply text-primary transition-transform duration-200;
-}
-
-.player-grid-view {
-  @apply border-t border-gray-700 pt-2;
-}
-
-/* Bingo word card styling */
-.bingo-word-card {
-  @apply relative bg-background-lighter p-3 rounded flex flex-col min-h-[80px] transition-colors;
-  display: flex;
-  align-items: flex-start;
-}
-
-.bingo-word-card.called-out {
-  @apply bg-success bg-opacity-20 border border-success;
-}
-
-.bingo-word-card.has-approvals {
-  @apply bg-warning bg-opacity-10 border border-warning;
-}
-
-.bingo-word-content {
-  @apply break-words overflow-hidden w-full text-sm;
-  word-break: break-word;
-  max-height: 100%;
-}
-
-.bingo-word-status {
-  @apply absolute top-2 right-2;
-}
-
-.called-out-icon {
-  @apply text-success font-bold;
-}
-
-/* Approval indicators */
-.approval-indicators {
-  @apply flex flex-wrap gap-1 mt-2 w-full;
-}
-
-.approval-badge {
-  @apply flex items-center justify-center bg-warning text-black w-6 h-6 rounded-full text-xs font-bold relative;
-}
-
-.approval-badge:hover .approval-actions {
-  @apply flex;
-}
-
-.approval-actions {
-  @apply hidden absolute -top-7 left-0 bg-background-card rounded-lg shadow-lg p-1 border border-gray-600 z-10;
-}
-
-.approve-btn, .reject-btn {
-  @apply w-6 h-6 rounded-full flex items-center justify-center text-xs;
-}
-
-.approve-btn {
-  @apply bg-success text-white mr-1;
-}
-
-.reject-btn {
-  @apply bg-error text-white;
-}
-</style>
