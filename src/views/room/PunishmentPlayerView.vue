@@ -76,21 +76,26 @@
         </ul>
       </div>
       
-      <!-- Game Grid -->
-      <div class="mb-6">
-        <PunishmentPlayerGrid 
-          :grid-height="roomData.gridHeight"
-          :grid="roomData.grid || {}"
-          :called-out-cells="roomData.calledOutCells || []"
-          :completed-punishments="roomData.completedPunishments || []"
-          :punishment-votes="roomData.punishmentVotes || {}"
-          :username="username"
-          @vote="votePunishment"
-        />
+      <!-- Main Content - Using same grid layout as host view -->
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        <!-- Left Column: Players List -->
+        <div class="lg:col-span-3">
+          <PunishmentPlayerList :players="roomData.players || []" />
+        </div>
+        
+        <!-- Right Column: Bingo Grid -->
+        <div class="lg:col-span-9">
+          <PunishmentPlayerGrid 
+            :grid-height="roomData.gridHeight"
+            :grid="roomData.grid || {}"
+            :called-out-cells="roomData.calledOutCells || []"
+            :completed-punishments="roomData.completedPunishments || []"
+            :punishment-votes="roomData.punishmentVotes || {}"
+            :username="username"
+            @vote="votePunishment"
+          />
+        </div>
       </div>
-      
-      <!-- Players section -->
-      <PunishmentPlayerList :players="roomData.players || []" />
     </div>
   </div>
 </template>
