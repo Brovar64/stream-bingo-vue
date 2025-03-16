@@ -391,38 +391,44 @@ export default {
       try {
         console.log('Attempting to join room:', roomCode)
         
-        // First try to join as classic bingo room
-        try {
-          console.log('Checking if classic bingo room exists')
-          await roomStore.loadRoom(roomCode)
-          
-          // If we get here, the room exists, so join it
-          console.log('Found classic bingo room, joining')
-          await roomStore.joinRoom(username.value, roomCode)
-          router.push(`/play/${roomCode}`)
-          return
-        } catch (error) {
-          console.log('Not a classic bingo room, trying punishment room')
-        }
-        
-        // If we get here, it wasn't a classic room, try punishment room
+        // First try to load the punishment room
+        let isPunishmentRoom = false
         try {
           console.log('Checking if punishment room exists')
           await punishmentRoomStore.loadRoom(roomCode)
-          
-          // If we get here, it's a punishment room
-          console.log('Found punishment room, joining')
+          isPunishmentRoom = true
+          console.log('Found punishment room')
+        } catch (error) {
+          console.log('Not a punishment room, will try classic bingo room')
+          isPunishmentRoom = false
+        }
+        
+        if (isPunishmentRoom) {
+          // It's a punishment room, join it
+          console.log('Joining punishment room')
           const result = await punishmentRoomStore.joinRoom(username.value, roomCode)
           
           if (result.success) {
             router.push(`/punishment-play/${roomCode}`)
+            return
           } else {
             throw new Error(result.error || 'Failed to join punishment room')
           }
-        } catch (punishError) {
-          // Not a punishment room either
-          console.log('Not a punishment room either')
-          notificationStore.showNotification(`Room ${roomCode} not found`, 'error')
+        } else {
+          // Try to join as classic bingo room
+          try {
+            console.log('Checking if classic bingo room exists')
+            await roomStore.loadRoom(roomCode)
+            
+            // If we get here, the room exists, so join it
+            console.log('Found classic bingo room, joining')
+            await roomStore.joinRoom(username.value, roomCode)
+            router.push(`/play/${roomCode}`)
+            return
+          } catch (error) {
+            console.log('Room not found:', error.message)
+            notificationStore.showNotification(`Room ${roomCode} not found`, 'error')
+          }
         }
       } catch (error) {
         console.error('Join room error:', error)
