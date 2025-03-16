@@ -1,3 +1,4 @@
+
 <template>
   <div class="mb-6">
     <h3 class="text-md font-semibold mb-2">Use Punishment Sets</h3>
@@ -83,16 +84,6 @@ export default {
       
       console.log('Applying creator set with ID:', this.selectedCreatorSet);
       
-      // Find the set with this ID
-      const selectedSet = this.creatorSets.find(set => set.id === this.selectedCreatorSet);
-      
-      if (!selectedSet) {
-        console.error('Could not find creator set with ID:', this.selectedCreatorSet);
-        return;
-      }
-      
-      console.log('Found set:', selectedSet.name, 'with', selectedSet.items.length, 'items');
-      
       // Emit the event with the selected set id
       this.$emit('apply-creator-set', this.selectedCreatorSet);
       
@@ -104,16 +95,6 @@ export default {
       if (this.selectedPlayerSet === '') return;
       
       console.log('Applying player set with ID:', this.selectedPlayerSet);
-      
-      // Find the set with this ID
-      const selectedSet = this.playerSets.find(set => set.id === this.selectedPlayerSet);
-      
-      if (!selectedSet) {
-        console.error('Could not find player set with ID:', this.selectedPlayerSet);
-        return;
-      }
-      
-      console.log('Found set:', selectedSet.name, 'with', selectedSet.items.length, 'items');
       
       // Emit the event with the selected set id
       this.$emit('apply-player-set', this.selectedPlayerSet);
