@@ -27,6 +27,34 @@
       </button>
     </div>
     
+    <!-- Universal Join Room Card - Always visible at the top -->
+    <div class="card mb-6">
+      <h2 class="text-xl font-semibold mb-4">Join a Room</h2>
+      <form @submit.prevent="handleUniversalJoinRoom" class="space-y-4">
+        <div class="form-group">
+          <label for="universalRoomCode">Room Code</label>
+          <input 
+            type="text" 
+            id="universalRoomCode" 
+            v-model="universalRoomCode"
+            class="form-control"
+            placeholder="Enter room code"
+            maxlength="6"
+            required
+            autocomplete="off"
+          >
+        </div>
+        
+        <button 
+          type="submit" 
+          class="btn btn-primary w-full"
+          :disabled="joinLoading"
+        >
+          {{ joinLoading ? 'Joining...' : 'Join Room' }}
+        </button>
+      </form>
+    </div>
+    
     <!-- Game Mode Tabs -->
     <div class="mb-6">
       <div class="flex space-x-2 border-b border-gray-700">
@@ -46,7 +74,7 @@
     </div>
     
     <!-- Classic Bingo Content -->
-    <div v-if="activeTab === 'classic'" class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+    <div v-if="activeTab === 'classic'" class="grid grid-cols-1 lg:grid-cols-2 gap-8">
       <!-- Create Room Card -->
       <div class="card">
         <h2 class="text-xl font-semibold mb-4">Create a Bingo Room</h2>
@@ -107,34 +135,6 @@
         </form>
       </div>
       
-      <!-- Join Room Card -->
-      <div class="card">
-        <h2 class="text-xl font-semibold mb-4">Join Existing Room</h2>
-        <form @submit.prevent="handleJoinRoom" class="space-y-4">
-          <div class="form-group">
-            <label for="joinRoomCode">Room Code</label>
-            <input 
-              type="text" 
-              id="joinRoomCode" 
-              v-model="joinRoomData.code"
-              class="form-control"
-              placeholder="Enter room code"
-              maxlength="6"
-              required
-              autocomplete="off"
-            >
-          </div>
-          
-          <button 
-            type="submit" 
-            class="btn btn-primary w-full"
-            :disabled="joinLoading"
-          >
-            {{ joinLoading ? 'Joining...' : 'Join Room' }}
-          </button>
-        </form>
-      </div>
-      
       <!-- Your Rooms Card -->
       <div class="card">
         <h2 class="text-xl font-semibold mb-4">Your Created Rooms</h2>
@@ -187,7 +187,7 @@
     </div>
     
     <!-- Punishment Bingo Content -->
-    <div v-if="activeTab === 'punishment'" class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+    <div v-if="activeTab === 'punishment'" class="grid grid-cols-1 lg:grid-cols-2 gap-8">
       <!-- Create Punishment Room Card -->
       <div class="card">
         <h2 class="text-xl font-semibold mb-4">Create Punishment Room</h2>
@@ -222,34 +222,6 @@
             :disabled="punishmentLoading"
           >
             {{ punishmentLoading ? 'Creating...' : 'Create Punishment Room' }}
-          </button>
-        </form>
-      </div>
-      
-      <!-- Join Punishment Room Card -->
-      <div class="card">
-        <h2 class="text-xl font-semibold mb-4">Join Punishment Room</h2>
-        <form @submit.prevent="handleJoinPunishmentRoom" class="space-y-4">
-          <div class="form-group">
-            <label for="joinPunishmentCode">Room Code</label>
-            <input 
-              type="text" 
-              id="joinPunishmentCode" 
-              v-model="joinPunishmentData.code"
-              class="form-control"
-              placeholder="Enter room code"
-              maxlength="6"
-              required
-              autocomplete="off"
-            >
-          </div>
-          
-          <button 
-            type="submit" 
-            class="btn btn-primary w-full"
-            :disabled="joinPunishmentLoading"
-          >
-            {{ joinPunishmentLoading ? 'Joining...' : 'Join Room' }}
           </button>
         </form>
       </div>
@@ -330,9 +302,11 @@ export default {
     const loading = ref(false)
     const joinLoading = ref(false)
     
+    // Universal join room code
+    const universalRoomCode = ref('')
+    
     // Punishment mode state
     const punishmentLoading = ref(false)
-    const joinPunishmentLoading = ref(false)
     const punishmentRooms = ref([])
     
     // Classic bingo state
@@ -341,18 +315,12 @@ export default {
       gridSize: 5,
       wordSetId: ''
     })
-    const joinRoomData = ref({
-      code: ''
-    })
     const userRooms = ref([])
     const wordSets = ref([])
     
     // Punishment bingo state
     const newPunishmentRoom = ref({
       gridHeight: 4
-    })
-    const joinPunishmentData = ref({
-      code: ''
     })
     
     // Computed properties
@@ -406,6 +374,61 @@ export default {
         notificationStore.showNotification('Failed to load punishment rooms', 'error')
       } finally {
         punishmentLoading.value = false
+      }
+    }
+    
+    // Universal join room handler
+    async function handleUniversalJoinRoom() {
+      if (!universalRoomCode.value) {
+        notificationStore.showNotification('Please enter a room code', 'error')
+        return
+      }
+      
+      joinLoading.value = true
+      const roomCode = universalRoomCode.value.trim().toUpperCase()
+      universalRoomCode.value = roomCode
+      
+      try {
+        console.log('Attempting to join room:', roomCode)
+        
+        // First try to join as classic bingo room
+        try {
+          console.log('Checking if classic bingo room exists')
+          await roomStore.loadRoom(roomCode)
+          
+          // If we get here, the room exists, so join it
+          console.log('Found classic bingo room, joining')
+          await roomStore.joinRoom(username.value, roomCode)
+          router.push(`/play/${roomCode}`)
+          return
+        } catch (error) {
+          console.log('Not a classic bingo room, trying punishment room')
+        }
+        
+        // If we get here, it wasn't a classic room, try punishment room
+        try {
+          console.log('Checking if punishment room exists')
+          await punishmentRoomStore.loadRoom(roomCode)
+          
+          // If we get here, it's a punishment room
+          console.log('Found punishment room, joining')
+          const result = await punishmentRoomStore.joinRoom(username.value, roomCode)
+          
+          if (result.success) {
+            router.push(`/punishment-play/${roomCode}`)
+          } else {
+            throw new Error(result.error || 'Failed to join punishment room')
+          }
+        } catch (punishError) {
+          // Not a punishment room either
+          console.log('Not a punishment room either')
+          notificationStore.showNotification(`Room ${roomCode} not found`, 'error')
+        }
+      } catch (error) {
+        console.error('Join room error:', error)
+        notificationStore.showNotification(`Failed to join room: ${error.message}`, 'error')
+      } finally {
+        joinLoading.value = false
       }
     }
     
@@ -472,60 +495,6 @@ export default {
         notificationStore.showNotification(`Failed to create punishment room: ${error.message}`, 'error')
       } finally {
         punishmentLoading.value = false
-      }
-    }
-    
-    // Join classic room
-    async function handleJoinRoom() {
-      joinLoading.value = true
-      
-      try {
-        const roomCode = joinRoomData.value.code.trim().toUpperCase()
-        joinRoomData.value.code = roomCode
-        
-        await roomStore.joinRoom(username.value, roomCode)
-        router.push(`/play/${roomCode}`)
-      } catch (error) {
-        console.error('Join room error:', error)
-        notificationStore.showNotification(`Failed to join room: ${error.message}`, 'error')
-      } finally {
-        joinLoading.value = false
-      }
-    }
-    
-    // Join punishment room
-    async function handleJoinPunishmentRoom() {
-      joinPunishmentLoading.value = true
-      
-      try {
-        console.log('Joining punishment room as player');
-        const roomCode = joinPunishmentData.value.code.trim().toUpperCase()
-        joinPunishmentData.value.code = roomCode
-        
-        // First check if the punishment room exists
-        try {
-          // Preload the room to make sure it exists before trying to join
-          await punishmentRoomStore.loadRoom(roomCode);
-          console.log('Found punishment room:', roomCode);
-          
-          // Now join the room with the punishment room store
-          const result = await punishmentRoomStore.joinRoom(username.value, roomCode)
-          
-          if (result.success) {
-            console.log('Successfully joined punishment room, redirecting to player view');
-            router.push(`/punishment-play/${roomCode}`)
-          } else {
-            throw new Error(result.error || 'Failed to join punishment room')
-          }
-        } catch (err) {
-          console.error('Error checking punishment room:', err);
-          notificationStore.showNotification(`Room ${roomCode} not found in punishment mode`, 'error');
-        }
-      } catch (error) {
-        console.error('Join punishment room error:', error)
-        notificationStore.showNotification(`Failed to join room: ${error.message}`, 'error')
-      } finally {
-        joinPunishmentLoading.value = false
       }
     }
     
@@ -609,22 +578,19 @@ export default {
       activeTab,
       loading,
       joinLoading,
+      universalRoomCode,
       newRoom,
-      joinRoomData,
       userRooms,
       wordSets,
       username,
       isTestUser,
       punishmentLoading,
-      joinPunishmentLoading,
       punishmentRooms,
       newPunishmentRoom,
-      joinPunishmentData,
+      handleUniversalJoinRoom,
       generateRandomCode,
       createRoom,
       createPunishmentRoom,
-      handleJoinRoom,
-      handleJoinPunishmentRoom,
       navigateToRoom,
       navigateToPunishmentRoom,
       confirmDeleteRoom,
