@@ -348,20 +348,35 @@ export default {
     async function saveSet() {
       if (!newSetName.value.trim() || parsedItems.value.length === 0) return
       
-      const setData = {
-        name: newSetName.value.trim(),
-        type: currentSetType.value,
-        items: parsedItems.value
-      }
-      
-      const setId = await wordSetStore.saveWordSet(setData, currentSetId.value)
-      
-      if (setId) {
+      try {
+        console.log('Saving set type:', currentSetType.value);
+        console.log('Parsed items:', parsedItems.value);
+        
+        // Create the set data with proper formatting
+        const setData = {
+          name: newSetName.value.trim(),
+          type: currentSetType.value,
+          items: parsedItems.value
+        };
+        
+        // Save to store
+        const setId = await wordSetStore.saveWordSet(setData, currentSetId.value);
+        
+        if (setId) {
+          notificationStore.showNotification(
+            `${getSetTypeLabel(currentSetType.value)} set ${isEditing.value ? 'updated' : 'created'} successfully`, 
+            'success'
+          );
+          closeModal();
+        } else {
+          throw new Error('Failed to save set');
+        }
+      } catch (error) {
+        console.error('Error saving set:', error);
         notificationStore.showNotification(
-          `${getSetTypeLabel(currentSetType.value)} set ${isEditing.value ? 'updated' : 'created'} successfully`, 
-          'success'
-        )
-        closeModal()
+          `Error saving ${getSetTypeLabel(currentSetType.value)} set: ${error.message}`,
+          'error'
+        );
       }
     }
     
