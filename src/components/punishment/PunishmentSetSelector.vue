@@ -8,7 +8,7 @@
         <select v-model="selectedCreatorSet" class="form-control">
           <option value="">Select a set...</option>
           <option v-for="(set, index) in creatorSets" :key="`creator-${index}`" :value="index">
-            {{ set.name }} ({{ set.entries.length }})
+            {{ set.name }} ({{ set.items.length }})
           </option>
         </select>
       </div>
@@ -27,7 +27,7 @@
         <select v-model="selectedPlayerSet" class="form-control">
           <option value="">Select a set...</option>
           <option v-for="(set, index) in playerSets" :key="`player-${index}`" :value="index">
-            {{ set.name }} ({{ set.entries.length }})
+            {{ set.name }} ({{ set.items.length }})
           </option>
         </select>
       </div>
