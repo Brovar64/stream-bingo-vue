@@ -2,135 +2,164 @@
   <div class="container py-8">
     <h1 class="title mb-8">Manage Sets</h1>
     
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-      <!-- Bingo Words Set Column -->
-      <div class="card">
-        <div class="flex justify-between items-center mb-4">
-          <h2 class="text-xl font-semibold">Bingo Words Sets</h2>
-          <button 
-            @click="startCreateSet('Word')" 
-            class="btn btn-primary text-sm py-1 px-2"
-          >
-            Create Word Set
-          </button>
-        </div>
-        
-        <div v-if="wordSets.length === 0" class="text-center py-4 text-gray-400">
-          No word sets created yet.
-        </div>
-        
-        <div v-else class="space-y-2">
-          <div 
-            v-for="(set, index) in wordSets" 
-            :key="index" 
-            class="bg-background-lighter p-3 rounded-lg flex justify-between items-center"
-          >
-            <div>
-              <div class="font-medium">{{ set.name }}</div>
-              <div class="text-xs text-gray-400">{{ set.items.length }} words</div>
-            </div>
-            <div class="flex space-x-2">
-              <button 
-                @click="editSet(index, 'Word')" 
-                class="text-primary hover:text-primary-light"
-              >
-                ✏️
-              </button>
-              <button 
-                @click="deleteSet(index, 'Word')" 
-                class="text-error hover:text-red-400"
-              >
-                🗑️
-              </button>
+    <div v-if="loading" class="text-center py-16">
+      <div class="spinner mx-auto mb-4"></div>
+      <h2 class="text-xl font-semibold">Loading Sets</h2>
+      <p class="text-gray-400">Please wait...</p>
+    </div>
+    
+    <div v-else>
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <!-- Bingo Words Set Column -->
+        <div class="card">
+          <div class="flex justify-between items-center mb-4">
+            <h2 class="text-xl font-semibold">Bingo Words Sets</h2>
+            <button 
+              @click="startCreateSet('word')" 
+              class="btn btn-primary text-sm py-1 px-2"
+              :disabled="!wordSetStore.canCreateWordSet"
+              :class="{'bg-gray-600 cursor-not-allowed': !wordSetStore.canCreateWordSet}"
+              :title="!wordSetStore.canCreateWordSet ? `Maximum ${wordSetStore.MAX_SETS_PER_TYPE} sets reached` : ''"
+            >
+              Create Word Set
+            </button>
+          </div>
+          
+          <div v-if="wordSetStore.wordSets.length === 0" class="text-center py-4 text-gray-400">
+            No word sets created yet.
+          </div>
+          
+          <div v-else class="space-y-2">
+            <div 
+              v-for="set in wordSetStore.wordSets" 
+              :key="set.id" 
+              class="bg-background-lighter p-3 rounded-lg flex justify-between items-center"
+            >
+              <div>
+                <div class="font-medium">{{ set.name }}</div>
+                <div class="text-xs text-gray-400">{{ set.items.length }} words</div>
+              </div>
+              <div class="flex space-x-2">
+                <button 
+                  @click="editSet(set, 'word')" 
+                  class="text-primary hover:text-primary-light"
+                >
+                  ✏️
+                </button>
+                <button 
+                  @click="deleteSet(set.id, 'Word')" 
+                  class="text-error hover:text-red-400"
+                >
+                  🗑️
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      </div>
-      
-      <!-- Player Punishment Set Column -->
-      <div class="card">
-        <div class="flex justify-between items-center mb-4">
-          <h2 class="text-xl font-semibold">Player Punishment Sets</h2>
-          <button 
-            @click="startCreateSet('Player Punishment')" 
-            class="btn btn-primary text-sm py-1 px-2"
-          >
-            Create Player Set
-          </button>
-        </div>
-        
-        <div v-if="playerPunishmentSets.length === 0" class="text-center py-4 text-gray-400">
-          No player punishment sets created yet.
-        </div>
-        
-        <div v-else class="space-y-2">
-          <div 
-            v-for="(set, index) in playerPunishmentSets" 
-            :key="index" 
-            class="bg-background-lighter p-3 rounded-lg flex justify-between items-center"
-          >
-            <div>
-              <div class="font-medium">{{ set.name }}</div>
-              <div class="text-xs text-gray-400">{{ set.items.length }} punishments</div>
-            </div>
-            <div class="flex space-x-2">
-              <button 
-                @click="editSet(index, 'Player Punishment')" 
-                class="text-primary hover:text-primary-light"
-              >
-                ✏️
-              </button>
-              <button 
-                @click="deleteSet(index, 'Player Punishment')" 
-                class="text-error hover:text-red-400"
-              >
-                🗑️
-              </button>
-            </div>
+          
+          <div v-if="wordSetStore.wordSetCount >= wordSetStore.MAX_SETS_PER_TYPE" class="mt-3 text-center text-xs text-warning">
+            Set limit reached ({{ wordSetStore.wordSetCount }}/{{ wordSetStore.MAX_SETS_PER_TYPE }})
           </div>
         </div>
-      </div>
-      
-      <!-- Creator Punishment Set Column -->
-      <div class="card">
-        <div class="flex justify-between items-center mb-4">
-          <h2 class="text-xl font-semibold">Creator Punishment Sets</h2>
-          <button 
-            @click="startCreateSet('Creator Punishment')" 
-            class="btn btn-primary text-sm py-1 px-2"
-          >
-            Create Creator Set
-          </button>
+        
+        <!-- Player Punishment Set Column -->
+        <div class="card">
+          <div class="flex justify-between items-center mb-4">
+            <h2 class="text-xl font-semibold">Player Punishment Sets</h2>
+            <button 
+              @click="startCreateSet('playerPunishment')" 
+              class="btn btn-primary text-sm py-1 px-2"
+              :disabled="!wordSetStore.canCreatePlayerPunishmentSet"
+              :class="{'bg-gray-600 cursor-not-allowed': !wordSetStore.canCreatePlayerPunishmentSet}"
+              :title="!wordSetStore.canCreatePlayerPunishmentSet ? `Maximum ${wordSetStore.MAX_SETS_PER_TYPE} sets reached` : ''"
+            >
+              Create Player Set
+            </button>
+          </div>
+          
+          <div v-if="wordSetStore.playerPunishmentSets.length === 0" class="text-center py-4 text-gray-400">
+            No player punishment sets created yet.
+          </div>
+          
+          <div v-else class="space-y-2">
+            <div 
+              v-for="set in wordSetStore.playerPunishmentSets" 
+              :key="set.id" 
+              class="bg-background-lighter p-3 rounded-lg flex justify-between items-center"
+            >
+              <div>
+                <div class="font-medium">{{ set.name }}</div>
+                <div class="text-xs text-gray-400">{{ set.items.length }} punishments</div>
+              </div>
+              <div class="flex space-x-2">
+                <button 
+                  @click="editSet(set, 'playerPunishment')" 
+                  class="text-primary hover:text-primary-light"
+                >
+                  ✏️
+                </button>
+                <button 
+                  @click="deleteSet(set.id, 'Player Punishment')" 
+                  class="text-error hover:text-red-400"
+                >
+                  🗑️
+                </button>
+              </div>
+            </div>
+          </div>
+          
+          <div v-if="wordSetStore.playerPunishmentSetCount >= wordSetStore.MAX_SETS_PER_TYPE" class="mt-3 text-center text-xs text-warning">
+            Set limit reached ({{ wordSetStore.playerPunishmentSetCount }}/{{ wordSetStore.MAX_SETS_PER_TYPE }})
+          </div>
         </div>
         
-        <div v-if="creatorPunishmentSets.length === 0" class="text-center py-4 text-gray-400">
-          No creator punishment sets created yet.
-        </div>
-        
-        <div v-else class="space-y-2">
-          <div 
-            v-for="(set, index) in creatorPunishmentSets" 
-            :key="index" 
-            class="bg-background-lighter p-3 rounded-lg flex justify-between items-center"
-          >
-            <div>
-              <div class="font-medium">{{ set.name }}</div>
-              <div class="text-xs text-gray-400">{{ set.items.length }} punishments</div>
+        <!-- Creator Punishment Set Column -->
+        <div class="card">
+          <div class="flex justify-between items-center mb-4">
+            <h2 class="text-xl font-semibold">Creator Punishment Sets</h2>
+            <button 
+              @click="startCreateSet('creatorPunishment')" 
+              class="btn btn-primary text-sm py-1 px-2"
+              :disabled="!wordSetStore.canCreateCreatorPunishmentSet"
+              :class="{'bg-gray-600 cursor-not-allowed': !wordSetStore.canCreateCreatorPunishmentSet}"
+              :title="!wordSetStore.canCreateCreatorPunishmentSet ? `Maximum ${wordSetStore.MAX_SETS_PER_TYPE} sets reached` : ''"
+            >
+              Create Creator Set
+            </button>
+          </div>
+          
+          <div v-if="wordSetStore.creatorPunishmentSets.length === 0" class="text-center py-4 text-gray-400">
+            No creator punishment sets created yet.
+          </div>
+          
+          <div v-else class="space-y-2">
+            <div 
+              v-for="set in wordSetStore.creatorPunishmentSets" 
+              :key="set.id" 
+              class="bg-background-lighter p-3 rounded-lg flex justify-between items-center"
+            >
+              <div>
+                <div class="font-medium">{{ set.name }}</div>
+                <div class="text-xs text-gray-400">{{ set.items.length }} punishments</div>
+              </div>
+              <div class="flex space-x-2">
+                <button 
+                  @click="editSet(set, 'creatorPunishment')" 
+                  class="text-primary hover:text-primary-light"
+                >
+                  ✏️
+                </button>
+                <button 
+                  @click="deleteSet(set.id, 'Creator Punishment')" 
+                  class="text-error hover:text-red-400"
+                >
+                  🗑️
+                </button>
+              </div>
             </div>
-            <div class="flex space-x-2">
-              <button 
-                @click="editSet(index, 'Creator Punishment')" 
-                class="text-primary hover:text-primary-light"
-              >
-                ✏️
-              </button>
-              <button 
-                @click="deleteSet(index, 'Creator Punishment')" 
-                class="text-error hover:text-red-400"
-              >
-                🗑️
-              </button>
-            </div>
+          </div>
+          
+          <div v-if="wordSetStore.creatorPunishmentSetCount >= wordSetStore.MAX_SETS_PER_TYPE" class="mt-3 text-center text-xs text-warning">
+            Set limit reached ({{ wordSetStore.creatorPunishmentSetCount }}/{{ wordSetStore.MAX_SETS_PER_TYPE }})
           </div>
         </div>
       </div>
@@ -141,7 +170,7 @@
       <div class="bg-background-card rounded-lg shadow-lg w-full max-w-3xl p-6 max-h-screen overflow-y-auto">
         <div class="flex justify-between items-center mb-6">
           <h2 class="text-2xl font-bold">
-            {{ editingIndex === -1 ? 'Create' : 'Edit' }} {{ currentSetType }} Set
+            {{ isEditing ? 'Edit' : 'Create' }} {{ getSetTypeLabel(currentSetType) }} Set
           </h2>
           <button @click="closeModal" class="text-gray-400 hover:text-white text-xl">
             ✕
@@ -154,17 +183,25 @@
             type="text" 
             v-model="newSetName" 
             class="form-control w-full"
-            :placeholder="`Enter ${currentSetType} set name`"
+            :placeholder="`Enter ${getSetTypeLabel(currentSetType).toLowerCase()} set name`"
           >
         </div>
         
         <div class="mb-6">
-          <label class="block text-sm text-gray-400 mb-2">Enter Items</label>
+          <div class="flex justify-between mb-2">
+            <label class="block text-sm text-gray-400">Enter Items</label>
+            <span class="text-xs text-gray-400">
+              {{ parsedItems.length }}/{{ wordSetStore.MAX_ITEMS_PER_SET }} items
+            </span>
+          </div>
           <textarea 
             v-model="itemInput" 
             class="form-control w-full h-48 font-mono"
-            :placeholder="`Enter each ${currentSetType.toLowerCase()} item on a new line`"
+            :placeholder="`Enter each ${getSetTypeLabel(currentSetType).toLowerCase()} item on a new line`"
           ></textarea>
+          <div v-if="parsedItems.length > wordSetStore.MAX_ITEMS_PER_SET" class="text-xs text-warning mt-1">
+            Only the first {{ wordSetStore.MAX_ITEMS_PER_SET }} items will be saved
+          </div>
         </div>
         
         <div class="flex justify-between items-center mb-6">
@@ -179,10 +216,6 @@
               @change="handleFileImport" 
               class="hidden"
             >
-          </div>
-          
-          <div class="text-gray-400">
-            <span class="font-bold">{{ parsedItems.length }}</span> items
           </div>
         </div>
         
@@ -207,133 +240,132 @@
 </template>
 
 <script>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useNotificationStore } from '@/stores/notification'
+import { useWordSetStore } from '@/stores/word-sets'
 
 export default {
   name: 'WordSetsView',
   setup() {
     const notificationStore = useNotificationStore()
+    const wordSetStore = useWordSetStore()
     
     // State
-    const wordSets = ref([])
-    const playerPunishmentSets = ref([])
-    const creatorPunishmentSets = ref([])
+    const loading = ref(true)
     const newSetName = ref('')
     const itemInput = ref('')
     const showModal = ref(false)
-    const currentSetType = ref('Word')
-    const editingIndex = ref(-1)
-    
-    // Load sets from local storage on initialization
-    function loadSets() {
-      const storedWordSets = localStorage.getItem('wordSets')
-      const storedPlayerPunishmentSets = localStorage.getItem('bingoPlayerPunishmentSets')
-      const storedCreatorPunishmentSets = localStorage.getItem('bingoCreatorPunishmentSets')
-      
-      wordSets.value = storedWordSets ? JSON.parse(storedWordSets) : []
-      playerPunishmentSets.value = storedPlayerPunishmentSets ? JSON.parse(storedPlayerPunishmentSets) : []
-      creatorPunishmentSets.value = storedCreatorPunishmentSets ? JSON.parse(storedCreatorPunishmentSets) : []
-    }
+    const currentSetType = ref('word')
+    const currentSetId = ref(null)
     
     // Computed
+    const isEditing = computed(() => !!currentSetId.value)
+    
     const parsedItems = computed(() => {
       if (!itemInput.value.trim()) return []
+      
+      // For word sets, just return the trimmed non-empty lines
+      if (currentSetType.value === 'word') {
+        return itemInput.value
+          .split('\n')
+          .map(item => item.trim())
+          .filter(item => item.length > 0)
+      }
+      
+      // For punishment sets, try to parse as phrase|punishment pairs
       return itemInput.value
         .split('\n')
-        .map(item => item.trim())
-        .filter(item => item.length > 0)
+        .map(line => {
+          const parts = line.split('|')
+          if (parts.length === 2 && parts[0].trim() && parts[1].trim()) {
+            return {
+              phrase: parts[0].trim(),
+              punishment: parts[1].trim()
+            }
+          }
+          return null
+        })
+        .filter(item => item !== null)
     })
+    
+    // Load sets on initialization
+    onMounted(async () => {
+      loading.value = true
+      await wordSetStore.loadWordSets()
+      loading.value = false
+    })
+    
+    // Method to get user-friendly type label
+    function getSetTypeLabel(type) {
+      switch(type) {
+        case 'word': return 'Word'
+        case 'playerPunishment': return 'Player Punishment'
+        case 'creatorPunishment': return 'Creator Punishment'
+        default: return 'Unknown'
+      }
+    }
     
     // Method to start creating a set
     function startCreateSet(type) {
       currentSetType.value = type
       newSetName.value = ''
       itemInput.value = ''
-      editingIndex.value = -1
+      currentSetId.value = null
       showModal.value = true
     }
     
     // Method to edit a set
-    function editSet(index, type) {
+    function editSet(set, type) {
       currentSetType.value = type
-      editingIndex.value = index
-      
-      const sets = getSetsForType(type)
-      const set = sets[index]
-      
+      currentSetId.value = set.id
       newSetName.value = set.name
-      itemInput.value = set.items.join('\n')
+      
+      // Format items based on type
+      if (type === 'word') {
+        itemInput.value = set.items.join('\n')
+      } else {
+        // For punishment sets, format as "phrase|punishment"
+        itemInput.value = set.items
+          .map(item => `${item.phrase}|${item.punishment}`)
+          .join('\n')
+      }
+      
       showModal.value = true
     }
     
     // Method to delete a set
-    function deleteSet(index, type) {
-      if (confirm(`Are you sure you want to delete this ${type.toLowerCase()} set?`)) {
-        const sets = getSetsForType(type)
-        const name = sets[index].name
+    async function deleteSet(setId, typeLabel) {
+      if (confirm(`Are you sure you want to delete this ${typeLabel.toLowerCase()} set?`)) {
+        const success = await wordSetStore.deleteWordSet(setId)
         
-        sets.splice(index, 1)
-        
-        saveSets(type)
-        notificationStore.showNotification(`${type} set "${name}" deleted`, 'success')
+        if (success) {
+          notificationStore.showNotification(`${typeLabel} set deleted successfully`, 'success')
+        }
       }
     }
     
-    // Save sets to local storage
-    function saveSets(type) {
-      let storageKey = 'wordSets'; // Default for Word type
-      
-      if (type === 'Player Punishment') {
-        storageKey = 'bingoPlayerPunishmentSets';
-      } else if (type === 'Creator Punishment') {
-        storageKey = 'bingoCreatorPunishmentSets';
-      }
-      
-      const sets = getSetsForType(type)
-      localStorage.setItem(storageKey, JSON.stringify(sets))
-    }
-    
-    // Get the correct sets array based on type
-    function getSetsForType(type) {
-      switch(type) {
-        case 'Word': return wordSets.value
-        case 'Player Punishment': return playerPunishmentSets.value
-        case 'Creator Punishment': return creatorPunishmentSets.value
-        default: return []
-      }
-    }
-    
-    // Method to save a new or edited set
-    function saveSet() {
+    // Save set
+    async function saveSet() {
       if (!newSetName.value.trim() || parsedItems.value.length === 0) return
       
-      const sets = getSetsForType(currentSetType.value)
-      
-      const newSet = {
+      const setData = {
         name: newSetName.value.trim(),
-        items: [...parsedItems.value],
-        createdAt: new Date().toISOString()
+        type: currentSetType.value,
+        items: parsedItems.value
       }
       
-      if (editingIndex.value === -1) {
-        // Creating new set
-        sets.push(newSet)
-        notificationStore.showNotification(`${currentSetType.value} set created successfully`, 'success')
-      } else {
-        // Updating existing set
-        sets[editingIndex.value] = {
-          ...newSet,
-          updatedAt: new Date().toISOString()
-        }
-        notificationStore.showNotification(`${currentSetType.value} set updated successfully`, 'success')
-      }
+      const setId = await wordSetStore.saveWordSet(setData, currentSetId.value)
       
-      saveSets(currentSetType.value)
-      closeModal()
+      if (setId) {
+        notificationStore.showNotification(
+          `${getSetTypeLabel(currentSetType.value)} set ${isEditing.value ? 'updated' : 'created'} successfully`, 
+          'success'
+        )
+        closeModal()
+      }
     }
     
-    // Method to handle file import
+    // Handle file import
     function handleFileImport(event) {
       const file = event.target.files[0]
       if (!file) return
@@ -353,22 +385,19 @@ export default {
       showModal.value = false
       newSetName.value = ''
       itemInput.value = ''
-      editingIndex.value = -1
+      currentSetId.value = null
     }
     
-    // Load sets on initialization
-    loadSets()
-    
     return {
-      wordSets,
-      playerPunishmentSets,
-      creatorPunishmentSets,
+      loading,
+      wordSetStore,
       newSetName,
       itemInput,
       showModal,
       currentSetType,
-      editingIndex,
+      isEditing,
       parsedItems,
+      getSetTypeLabel,
       startCreateSet,
       editSet,
       deleteSet,
