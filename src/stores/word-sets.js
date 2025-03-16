@@ -80,6 +80,11 @@ export const useWordSetStore = defineStore('wordSet', () => {
         }
       })
       
+      console.log('Loaded sets:');
+      console.log('Word sets:', wordSets.value.length);
+      console.log('Player punishment sets:', playerPunishmentSets.value.length);
+      console.log('Creator punishment sets:', creatorPunishmentSets.value.length);
+      
       loading.value = false
       return true
     } catch (err) {
@@ -106,6 +111,10 @@ export const useWordSetStore = defineStore('wordSet', () => {
       if (!setData.name || !setData.items || !setData.type) {
         throw new Error('Missing required data for word set')
       }
+      
+      console.log('Saving set of type:', setData.type);
+      console.log('Set items count:', setData.items.length);
+      console.log('First item example:', setData.items[0]);
       
       // Enforce item limit
       if (setData.items.length > MAX_ITEMS_PER_SET) {
