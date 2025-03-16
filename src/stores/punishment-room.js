@@ -338,34 +338,32 @@ export const usePunishmentRoomStore = defineStore('punishmentRoom', () => {
     try {
       const roomRef = doc(db, 'punishmentRooms', roomId)
       
+      // First load the room to get current data
+      await loadRoom(roomId)
+      
       // Check if player already exists
       const existingPlayer = currentRoom.value?.players?.find(p => p.nickname === playerName)
       
       if (!existingPlayer) {
-        // Add player to the room
-        await updateDoc(roomRef, {
-          players: arrayUnion({
-            nickname: playerName,
-            joinedAt: serverTimestamp()
-          })
-        })
-      }
-      
-      // Update local state if we have the room loaded
-      if (currentRoom.value && currentRoom.value.id === roomId) {
-        if (!currentRoom.value.players) {
-          currentRoom.value.players = []
+        // Create player data with current date instead of serverTimestamp
+        const playerData = {
+          nickname: playerName,
+          joinedAt: new Date().toISOString() // Use ISO string instead of serverTimestamp
         }
         
-        if (!existingPlayer) {
-          currentRoom.value.players.push({
-            nickname: playerName,
-            joinedAt: new Date()
-          })
-        }
-      } else {
-        // Load the room if not already loaded
-        await loadRoom(roomId)
+        // Get current players array or empty array
+        const currentPlayers = currentRoom.value?.players || []
+        
+        // Add new player
+        const updatedPlayers = [...currentPlayers, playerData]
+        
+        // Update the document
+        await updateDoc(roomRef, {
+          players: updatedPlayers
+        })
+        
+        // Update local state
+        currentRoom.value.players = updatedPlayers
       }
       
       return { success: true }
