@@ -3,11 +3,7 @@
     <div>
       <div class="flex items-center gap-3 mb-2">
         <h1 class="title">Room: {{ roomData.id }}</h1>
-        <span
-            :class="['status-badge', roomData.status === 'active' ? 'bg-success' : 'bg-warning']"
-        >
-          {{ roomData.status === 'active' ? 'Active' : 'Setup' }}
-        </span>
+        <BaseStatusBadge :status="roomData.status" />
       </div>
       <p class="subtitle">{{ roomData.gridSize }}x{{ roomData.gridSize }} Grid</p>
     </div>
@@ -34,7 +30,7 @@
 
       <button
           v-if="isRoomSetup"
-          @click="startGame"
+          @click="startGameWithConfirmation"
           :disabled="wordCount < requiredWords"
           :class="['btn', wordCount < requiredWords ? 'bg-gray-600 cursor-not-allowed' : 'btn-primary']"
       >
@@ -43,18 +39,45 @@
 
       <button
           v-if="isRoomActive"
-          @click="resetGame"
+          @click="resetGameWithConfirmation"
           class="btn bg-warning hover:bg-yellow-700 text-white"
       >
         Reset Game
       </button>
     </div>
+
+    <!-- Confirmation dialog for starting game -->
+    <BaseConfirmDialog
+        v-model="showStartConfirm"
+        title="Start Game"
+        message="Once you start the game, all words will be locked and players can join. Are you sure you want to proceed?"
+        confirmText="Start Game"
+        variant="primary"
+        @confirm="startGame"
+    />
+
+    <!-- Confirmation dialog for resetting -->
+    <BaseConfirmDialog
+        v-model="showResetConfirm"
+        title="Reset Game"
+        message="Resetting the game will remove all players' progress and return to setup mode. This cannot be undone. Are you sure?"
+        confirmText="Reset Game"
+        variant="danger"
+        @confirm="resetGame"
+    />
   </div>
 </template>
 
 <script>
+import BaseStatusBadge from './BaseStatusBadge.vue';
+import BaseConfirmDialog from '@/components/base/BaseConfirmDialog.vue';
+
 export default {
   name: 'RoomHeader',
+  components: {
+    BaseStatusBadge,
+    BaseConfirmDialog
+  },
   props: {
     roomData: {
       type: Object,
@@ -78,15 +101,34 @@ export default {
     }
   },
   emits: ['start-game', 'reset-game', 'copy-room-code'],
+
+  data() {
+    return {
+      showStartConfirm: false,
+      showResetConfirm: false
+    };
+  },
+
   methods: {
+    startGameWithConfirmation() {
+      if (this.wordCount < this.requiredWords) return;
+      this.showStartConfirm = true;
+    },
+
+    resetGameWithConfirmation() {
+      this.showResetConfirm = true;
+    },
+
     startGame() {
-      this.$emit('start-game')
+      this.$emit('start-game');
     },
+
     resetGame() {
-      this.$emit('reset-game')
+      this.$emit('reset-game');
     },
+
     copyRoomCode() {
-      this.$emit('copy-room-code', this.roomData.id)
+      this.$emit('copy-room-code', this.roomData.id);
     }
   }
 }
