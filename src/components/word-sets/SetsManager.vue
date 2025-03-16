@@ -1,37 +1,31 @@
 <template>
   <div>
     <!-- Management Tabs -->
-    <div class="tab-container mb-6">
-      <button 
-        @click="activeTab = 'words'" 
-        :class="['tab-button', activeTab === 'words' ? 'active' : '']"
-      >
-        Bingo Words
-      </button>
-      <button 
-        @click="activeTab = 'playerPunishments'" 
-        :class="['tab-button', activeTab === 'playerPunishments' ? 'active' : '']"
-      >
-        Player Punishments
-      </button>
-      <button 
-        @click="activeTab = 'creatorPunishments'" 
-        :class="['tab-button', activeTab === 'creatorPunishments' ? 'active' : '']"
-      >
-        Creator Punishments
-      </button>
-    </div>
-    
+    <BaseTabs
+      v-model="activeTab"
+      :tabs="tabOptions"
+      class="mb-6"
+      @tab-change="handleTabChange"
+    >
+      <!-- Tab content is rendered outside the tabs component -->
+    </BaseTabs>
+
     <!-- Word Sets List -->
     <div v-if="activeTab === 'words'" class="grid grid-cols-1 md:grid-cols-3 gap-4">
-      <div v-if="wordSets.length === 0" class="col-span-3 card p-6 flex flex-col items-center justify-center">
-        <div class="text-gray-400 mb-3">No word sets created yet</div>
-        <p class="text-sm text-gray-500">Create your first word set to get started!</p>
+      <div v-if="wordSets.length === 0" class="col-span-3">
+        <BaseCard padding="large">
+          <div class="flex flex-col items-center justify-center text-center">
+            <div class="text-gray-400 mb-3">No word sets created yet</div>
+            <p class="text-sm text-gray-500">Create your first word set to get started!</p>
+          </div>
+        </BaseCard>
       </div>
       
-      <div v-for="(wordSet, index) in wordSets" :key="index" class="card p-4">
-        <div class="flex justify-between items-start mb-4">
+      <BaseCard v-for="(wordSet, index) in wordSets" :key="index">
+        <template #header>
           <h3 class="text-lg font-semibold">{{ wordSet.name }}</h3>
+        </template>
+        <template #header-actions>
           <div class="flex space-x-2">
             <button 
               @click="editWordSet(index)" 
@@ -48,38 +42,46 @@
               🗑️
             </button>
           </div>
-        </div>
+        </template>
         
         <div class="text-sm text-gray-400 mb-2">{{ wordSet.words.length }} words</div>
         
-        <div class="max-h-32 overflow-y-auto bg-background-lighter p-2 rounded mb-3">
+        <BaseCard variant="light" padding="small" bodyClass="max-h-32 overflow-y-auto">
           <div v-for="(word, wordIndex) in wordSet.words.slice(0, 5)" :key="wordIndex" class="text-sm mb-1">
             {{ word }}
           </div>
           <div v-if="wordSet.words.length > 5" class="text-xs text-gray-500 italic">
             And {{ wordSet.words.length - 5 }} more...
           </div>
-        </div>
+        </BaseCard>
         
-        <button 
-          @click="viewWordSet(index)" 
-          class="btn bg-background-lighter hover:bg-gray-700 text-white w-full"
-        >
-          View Details
-        </button>
-      </div>
+        <template #footer>
+          <button 
+            @click="viewWordSet(index)" 
+            class="btn bg-background-lighter hover:bg-gray-700 text-white w-full"
+          >
+            View Details
+          </button>
+        </template>
+      </BaseCard>
     </div>
     
     <!-- Player Punishment Sets List -->
     <div v-if="activeTab === 'playerPunishments'" class="grid grid-cols-1 md:grid-cols-3 gap-4">
-      <div v-if="playerPunishmentSets.length === 0" class="col-span-3 card p-6 flex flex-col items-center justify-center">
-        <div class="text-gray-400 mb-3">No player punishment sets created yet</div>
-        <p class="text-sm text-gray-500">Create your first player punishment set to get started!</p>
+      <div v-if="playerPunishmentSets.length === 0" class="col-span-3">
+        <BaseCard padding="large">
+          <div class="flex flex-col items-center justify-center text-center">
+            <div class="text-gray-400 mb-3">No player punishment sets created yet</div>
+            <p class="text-sm text-gray-500">Create your first player punishment set to get started!</p>
+          </div>
+        </BaseCard>
       </div>
       
-      <div v-for="(punishmentSet, index) in playerPunishmentSets" :key="index" class="card p-4">
-        <div class="flex justify-between items-start mb-4">
+      <BaseCard v-for="(punishmentSet, index) in playerPunishmentSets" :key="index">
+        <template #header>
           <h3 class="text-lg font-semibold">{{ punishmentSet.name }}</h3>
+        </template>
+        <template #header-actions>
           <div class="flex space-x-2">
             <button 
               @click="editPunishmentSet('player', index)" 
@@ -96,11 +98,11 @@
               🗑️
             </button>
           </div>
-        </div>
+        </template>
         
         <div class="text-sm text-gray-400 mb-2">{{ punishmentSet.entries.length }} punishments</div>
         
-        <div class="max-h-32 overflow-y-auto bg-background-lighter p-2 rounded mb-3">
+        <BaseCard variant="light" padding="small" bodyClass="max-h-32 overflow-y-auto">
           <div v-for="(entry, entryIndex) in punishmentSet.entries.slice(0, 3)" :key="entryIndex" class="text-sm mb-2">
             <div class="font-medium">{{ entry.phrase }}</div>
             <div class="text-xs italic text-gray-400">{{ entry.punishment }}</div>
@@ -108,27 +110,35 @@
           <div v-if="punishmentSet.entries.length > 3" class="text-xs text-gray-500 italic">
             And {{ punishmentSet.entries.length - 3 }} more...
           </div>
-        </div>
+        </BaseCard>
         
-        <button 
-          @click="viewPunishmentSet('player', index)" 
-          class="btn bg-background-lighter hover:bg-gray-700 text-white w-full"
-        >
-          View Details
-        </button>
-      </div>
+        <template #footer>
+          <button 
+            @click="viewPunishmentSet('player', index)" 
+            class="btn bg-background-lighter hover:bg-gray-700 text-white w-full"
+          >
+            View Details
+          </button>
+        </template>
+      </BaseCard>
     </div>
     
     <!-- Creator Punishment Sets List -->
     <div v-if="activeTab === 'creatorPunishments'" class="grid grid-cols-1 md:grid-cols-3 gap-4">
-      <div v-if="creatorPunishmentSets.length === 0" class="col-span-3 card p-6 flex flex-col items-center justify-center">
-        <div class="text-gray-400 mb-3">No creator punishment sets created yet</div>
-        <p class="text-sm text-gray-500">Create your first creator punishment set to get started!</p>
+      <div v-if="creatorPunishmentSets.length === 0" class="col-span-3">
+        <BaseCard padding="large">
+          <div class="flex flex-col items-center justify-center text-center">
+            <div class="text-gray-400 mb-3">No creator punishment sets created yet</div>
+            <p class="text-sm text-gray-500">Create your first creator punishment set to get started!</p>
+          </div>
+        </BaseCard>
       </div>
       
-      <div v-for="(punishmentSet, index) in creatorPunishmentSets" :key="index" class="card p-4">
-        <div class="flex justify-between items-start mb-4">
+      <BaseCard v-for="(punishmentSet, index) in creatorPunishmentSets" :key="index">
+        <template #header>
           <h3 class="text-lg font-semibold">{{ punishmentSet.name }}</h3>
+        </template>
+        <template #header-actions>
           <div class="flex space-x-2">
             <button 
               @click="editPunishmentSet('creator', index)" 
@@ -145,11 +155,11 @@
               🗑️
             </button>
           </div>
-        </div>
+        </template>
         
         <div class="text-sm text-gray-400 mb-2">{{ punishmentSet.entries.length }} punishments</div>
         
-        <div class="max-h-32 overflow-y-auto bg-background-lighter p-2 rounded mb-3">
+        <BaseCard variant="light" padding="small" bodyClass="max-h-32 overflow-y-auto">
           <div v-for="(entry, entryIndex) in punishmentSet.entries.slice(0, 3)" :key="entryIndex" class="text-sm mb-2">
             <div class="font-medium">{{ entry.phrase }}</div>
             <div class="text-xs italic text-gray-400">{{ entry.punishment }}</div>
@@ -157,23 +167,31 @@
           <div v-if="punishmentSet.entries.length > 3" class="text-xs text-gray-500 italic">
             And {{ punishmentSet.entries.length - 3 }} more...
           </div>
-        </div>
+        </BaseCard>
         
-        <button 
-          @click="viewPunishmentSet('creator', index)" 
-          class="btn bg-background-lighter hover:bg-gray-700 text-white w-full"
-        >
-          View Details
-        </button>
-      </div>
+        <template #footer>
+          <button 
+            @click="viewPunishmentSet('creator', index)" 
+            class="btn bg-background-lighter hover:bg-gray-700 text-white w-full"
+          >
+            View Details
+          </button>
+        </template>
+      </BaseCard>
     </div>
   </div>
 </template>
 
 <script>
+import BaseTabs from '@/components/base/BaseTabs.vue';
+import BaseCard from '@/components/base/BaseCard.vue';
+
 export default {
   name: 'SetsManager',
-  
+  components: {
+    BaseTabs,
+    BaseCard
+  },
   props: {
     wordSets: {
       type: Array,
@@ -203,6 +221,16 @@ export default {
     };
   },
   
+  computed: {
+    tabOptions() {
+      return [
+        { value: 'words', label: 'Bingo Words' },
+        { value: 'playerPunishments', label: 'Player Punishments' },
+        { value: 'creatorPunishments', label: 'Creator Punishments' }
+      ];
+    }
+  },
+  
   watch: {
     initialTab(newTab) {
       this.activeTab = newTab;
@@ -214,6 +242,10 @@ export default {
   },
   
   methods: {
+    handleTabChange(tabValue) {
+      this.activeTab = tabValue;
+    },
+    
     // Word set operations
     viewWordSet(index) {
       this.$emit('view-word-set', index);
@@ -242,17 +274,3 @@ export default {
   }
 }
 </script>
-
-<style scoped>
-.tab-container {
-  @apply flex space-x-2;
-}
-
-.tab-button {
-  @apply px-4 py-2 rounded-lg bg-background-lighter hover:bg-gray-700 transition-colors;
-}
-
-.tab-button.active {
-  @apply bg-primary text-white;
-}
-</style>

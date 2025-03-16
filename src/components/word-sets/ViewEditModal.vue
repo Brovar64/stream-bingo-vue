@@ -1,92 +1,95 @@
-
 <template>
-  <teleport to="body">
-    <div v-show="visible" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
-      <div class="bg-background-card rounded-lg shadow-lg w-full max-w-3xl p-6 max-h-screen overflow-y-auto">
-        <div class="flex justify-between items-center mb-6">
-          <h2 class="text-2xl font-bold">
-            {{ typeLabel }}: {{ setName }}
-          </h2>
-          <button @click="closeModal" class="text-gray-400 hover:text-white text-xl">
-            ✕
-          </button>
-        </div>
-        
-        <div v-if="editing" class="mb-6">
-          <label class="block text-sm text-gray-400 mb-2">Edit Items</label>
-          <textarea 
-            v-model="itemInput" 
-            class="form-control w-full h-48 font-mono"
-            :placeholder="`Enter each ${type === 'word' ? 'word' : 'punishment'} on a new line`"
-          ></textarea>
-        </div>
-        
-        <div v-else class="mb-6">
-          <div class="flex justify-between items-center mb-3">
-            <label class="block text-sm text-gray-400">All Items ({{ setItems.length }})</label>
-            <button 
-              @click="startEditing" 
-              class="text-primary hover:text-primary-light"
-            >
-              Edit Items
-            </button>
-          </div>
-          
-          <div class="bg-background-lighter p-3 rounded h-64 overflow-y-auto">
-            <div v-for="(item, index) in setItems" :key="index" class="mb-1">
-              {{ item }}
-            </div>
-          </div>
-        </div>
-        
-        <div v-if="editing" class="flex justify-between items-center mb-6">
-          <div>
-            <label for="editFileInput" class="btn bg-background-lighter hover:bg-gray-700 text-white cursor-pointer">
-              Import from TXT File
-            </label>
-            <input 
-              type="file" 
-              id="editFileInput" 
-              accept=".txt" 
-              @change="handleFileImport" 
-              class="hidden"
-            >
-          </div>
-          
-          <div class="text-gray-400">
-            <span class="font-bold">
-              {{ parsedItems.length }}
-            </span> 
-            items
-          </div>
-        </div>
-        
-        <div class="flex justify-end space-x-3">
-          <button 
-            @click="closeModal" 
-            class="btn bg-background-lighter hover:bg-gray-700 text-white"
+  <BaseModal
+    v-model="localVisible"
+    :title="typeLabel + ': ' + setName"
+    size="large"
+  >
+    <div v-if="editing">
+      <BaseTextarea
+        v-model="itemInput"
+        label="Edit Items"
+        :placeholder="`Enter each ${type === 'word' ? 'word' : 'punishment'} on a new line`"
+        rows="12"
+        :spellcheck="false"
+        textareaClass="font-mono"
+        :showCount="true"
+      />
+      
+      <div class="flex justify-between items-center my-6">
+        <div>
+          <label for="editFileInput" class="btn bg-background-lighter hover:bg-gray-700 text-white cursor-pointer">
+            Import from TXT File
+          </label>
+          <input 
+            type="file" 
+            id="editFileInput" 
+            accept=".txt" 
+            @change="handleFileImport" 
+            class="hidden"
           >
-            {{ editing ? 'Cancel' : 'Close' }}
-          </button>
-          
-          <button 
-            v-if="editing"
-            @click="saveChanges" 
-            class="btn btn-primary"
-            :disabled="parsedItems.length === 0"
-          >
-            Save Changes
-          </button>
+        </div>
+        
+        <div class="text-gray-400">
+          <span class="font-bold">
+            {{ parsedItems.length }}
+          </span> 
+          items
         </div>
       </div>
     </div>
-  </teleport>
+    
+    <div v-else class="mb-6">
+      <div class="flex justify-between items-center mb-3">
+        <label class="block text-sm text-gray-400">All Items ({{ setItems.length }})</label>
+        <button 
+          @click="startEditing" 
+          class="text-primary hover:text-primary-light"
+        >
+          Edit Items
+        </button>
+      </div>
+      
+      <BaseCard padding="small" variant="light" bodyClass="h-64 overflow-y-auto">
+        <div v-for="(item, index) in setItems" :key="index" class="mb-1">
+          {{ item }}
+        </div>
+      </BaseCard>
+    </div>
+    
+    <template #footer>
+      <div class="flex justify-end space-x-3">
+        <button 
+          @click="closeModal" 
+          class="btn bg-background-lighter hover:bg-gray-700 text-white"
+        >
+          {{ editing ? 'Cancel' : 'Close' }}
+        </button>
+        
+        <button 
+          v-if="editing"
+          @click="saveChanges" 
+          class="btn btn-primary"
+          :disabled="parsedItems.length === 0"
+        >
+          Save Changes
+        </button>
+      </div>
+    </template>
+  </BaseModal>
 </template>
 
 <script>
+import BaseModal from '@/components/base/BaseModal.vue';
+import BaseTextarea from '@/components/base/BaseTextarea.vue';
+import BaseCard from '@/components/base/BaseCard.vue';
+
 export default {
   name: 'ViewEditModal',
-  
+  components: {
+    BaseModal,
+    BaseTextarea,
+    BaseCard
+  },
   props: {
     visible: {
       type: Boolean,
@@ -117,6 +120,14 @@ export default {
   },
   
   computed: {
+    localVisible: {
+      get() {
+        return this.visible;
+      },
+      set(value) {
+        this.$emit('update:visible', value);
+      }
+    },
     typeLabel() {
       switch (this.type) {
         case 'word':
@@ -140,12 +151,6 @@ export default {
     }
   },
   
-  watch: {
-    visible(newVal) {
-      console.log('ViewEditModal visibility changed:', newVal);
-    }
-  },
-  
   methods: {
     startEditing() {
       this.editing = true;
@@ -155,18 +160,16 @@ export default {
     },
     
     closeModal() {
-      console.log('ViewEditModal closeModal called, editing:', this.editing);
       if (this.editing) {
         this.editing = false;
         this.itemInput = '';
       } else {
-        this.$emit('update:visible', false);
+        this.localVisible = false;
         this.$emit('cancel');
       }
     },
     
     saveChanges() {
-      console.log('ViewEditModal saveChanges called');
       if (this.parsedItems.length === 0) return;
       
       this.$emit('save', {
