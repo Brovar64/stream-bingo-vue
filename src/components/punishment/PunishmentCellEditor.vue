@@ -23,25 +23,25 @@
         Cell position: Row {{ position.row + 1 }}, Column {{ position.col + 1 }} 
         ({{ side === 'left' ? 'Creator' : 'Players' }} side)
       </div>
-      
-      <template #footer>
-        <div class="flex justify-end space-x-3">
-          <button 
-            type="button" 
-            @click="cancel" 
-            class="btn bg-background-lighter hover:bg-gray-700 text-white"
-          >
-            Cancel
-          </button>
-          <button 
-            type="submit" 
-            class="btn btn-primary"
-          >
-            Save
-          </button>
-        </div>
-      </template>
     </form>
+    
+    <template #footer>
+      <div class="flex justify-end space-x-3">
+        <button 
+          type="button" 
+          @click="cancel" 
+          class="btn bg-background-lighter hover:bg-gray-700 text-white"
+        >
+          Cancel
+        </button>
+        <button 
+          @click="save" 
+          class="btn btn-primary"
+        >
+          Save
+        </button>
+      </div>
+    </template>
   </BaseModal>
 </template>
 
