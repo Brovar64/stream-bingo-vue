@@ -1,3 +1,4 @@
+
 <template>
   <div v-if="visible" class="modal-overlay">
     <div class="modal-content" @click.stop>
@@ -7,27 +8,20 @@
       </div>
       
       <div class="modal-body">
-        <template v-if="type === 'word'">
-          <label>Enter or Paste Words</label>
-          <p class="help-text">Each word or phrase should be on a new line. Empty lines will be ignored.</p>
-          <textarea v-model="wordInput" placeholder="Enter words here..."></textarea>
-        </template>
-        
-        <template v-else>
-          <label>Enter Phrase and Punishment Pairs</label>
-          <p class="help-text">Format: "Phrase|Punishment" (one pair per line)</p>
-          <textarea v-model="punishmentInput" placeholder="When X happens|Do Y punishment"></textarea>
-        </template>
-        
-        <div class="file-input-container">
-          <label class="file-input-label">
-            Import from TXT File
-            <input type="file" accept=".txt" @change="handleFileImport" class="file-input">
-          </label>
-          <div class="count">
-            {{ type === 'word' ? parsedWords.length : parsedPunishments.length }}
-            {{ type === 'word' ? 'words' : 'entries' }}
-          </div>
+        <label>Enter Items (one per line)</label>
+        <p class="help-text">
+          {{ getHelpText() }}
+        </p>
+        <textarea v-model="itemInput" placeholder="Enter items here..."></textarea>
+      </div>
+      
+      <div class="file-input-container">
+        <label class="file-input-label">
+          Import from TXT File
+          <input type="file" accept=".txt" @change="handleFileImport" class="file-input">
+        </label>
+        <div class="count">
+          {{ parsedItems.length }} items
         </div>
       </div>
       
@@ -35,7 +29,7 @@
         <button @click="closeModal" class="cancel-button">Cancel</button>
         <button 
           @click="saveSet"
-          :disabled="type === 'word' ? parsedWords.length === 0 : parsedPunishments.length === 0"
+          :disabled="parsedItems.length === 0"
           class="save-button"
         >
           Save Set
@@ -59,51 +53,57 @@ export default {
   emits: ['update:visible', 'save', 'cancel'],
   data() {
     return {
-      wordInput: '',
-      punishmentInput: ''
+      itemInput: ''
     }
   },
   computed: {
     typeLabel() {
-      return `Create ${this.type === 'word' ? 'Word' : this.type === 'playerPunishment' ? 'Player Punishment' : 'Creator Punishment'} Set: ${this.setName}`;
+      return `Create ${this.getTypeLabel()} Set: ${this.setName}`;
     },
-    parsedWords() {
-      return this.wordInput.trim() 
-        ? this.wordInput.split('\n').map(w => w.trim()).filter(w => w)
-        : [];
-    },
-    parsedPunishments() {
-      if (!this.punishmentInput.trim()) return [];
-      return this.punishmentInput.split('\n')
-        .map(line => {
-          const parts = line.split('|');
-          return parts.length === 2 
-            ? { phrase: parts[0].trim(), punishment: parts[1].trim() }
-            : null;
-        })
-        .filter(p => p && p.phrase && p.punishment);
+    parsedItems() {
+      if (!this.itemInput.trim()) return [];
+      
+      return this.itemInput
+        .split('\n')
+        .map(line => line.trim())
+        .filter(line => line.length > 0);
     }
   },
   methods: {
+    getTypeLabel() {
+      switch(this.type) {
+        case 'word': return 'Word';
+        case 'playerPunishment': return 'Player Punishment';
+        case 'creatorPunishment': return 'Creator Punishment';
+        default: return 'Unknown';
+      }
+    },
+    getHelpText() {
+      if (this.type === 'word') {
+        return 'Each line should contain a word or phrase that might happen during your stream.';
+      } else if (this.type === 'playerPunishment') {
+        return 'Each line should contain a punishment that viewers might have to do.';
+      } else if (this.type === 'creatorPunishment') {
+        return 'Each line should contain a punishment that you (the streamer) might have to do.';
+      }
+      return '';
+    },
     closeModal() {
-      this.wordInput = '';
-      this.punishmentInput = '';
+      this.itemInput = '';
       this.$emit('update:visible', false);
     },
     saveSet() {
-      if ((this.type === 'word' && this.parsedWords.length === 0) ||
-          (this.type !== 'word' && this.parsedPunishments.length === 0)) {
+      if (this.parsedItems.length === 0) {
         return;
       }
       
       this.$emit('save', {
         type: this.type,
         name: this.setName,
-        content: this.type === 'word' ? this.parsedWords : this.parsedPunishments
+        content: this.parsedItems
       });
       
-      this.wordInput = '';
-      this.punishmentInput = '';
+      this.itemInput = '';
     },
     handleFileImport(event) {
       const file = event.target.files[0];
@@ -111,11 +111,7 @@ export default {
       
       const reader = new FileReader();
       reader.onload = e => {
-        if (this.type === 'word') {
-          this.wordInput = e.target.result;
-        } else {
-          this.punishmentInput = e.target.result;
-        }
+        this.itemInput = e.target.result;
       };
       reader.readAsText(file);
       event.target.value = '';
@@ -201,6 +197,7 @@ textarea {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 15px;
+  padding: 0 15px;
 }
 
 .file-input {
