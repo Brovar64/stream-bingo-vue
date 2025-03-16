@@ -391,59 +391,82 @@ export default {
     async function applyCreatorSet() {
       if (!selectedCreatorSet.value) return
       
-      const selectedSet = wordSetStore.creatorPunishmentSets.find(
-        set => set.id === selectedCreatorSet.value
-      )
-      
-      if (!selectedSet || !selectedSet.items || selectedSet.items.length === 0) {
-        notificationStore.showNotification('Selected set is empty', 'error')
-        return
-      }
-      
-      // Find empty cells on the creator side
-      const emptyCells = []
-      for (let row = 0; row < roomData.value.gridHeight; row++) {
-        for (let col = 0; col < 2; col++) {
-          const cellId = `${row}_${col}`
-          if (!roomData.value.grid?.[cellId]) {
-            emptyCells.push({ row, col })
+      try {
+        console.log("Applying creator set:", selectedCreatorSet.value);
+        
+        // Find the selected set in our store
+        const selectedSet = wordSetStore.creatorPunishmentSets.find(
+          set => set.id === selectedCreatorSet.value
+        );
+        
+        if (!selectedSet) {
+          throw new Error('Selected set not found');
+        }
+        
+        console.log("Found set:", selectedSet.name, "with", selectedSet.items.length, "items");
+        console.log("First item sample:", selectedSet.items[0]);
+        
+        if (!selectedSet.items || selectedSet.items.length === 0) {
+          throw new Error('Selected set is empty');
+        }
+        
+        // Find empty cells on the creator side
+        const emptyCells = [];
+        for (let row = 0; row < roomData.value.gridHeight; row++) {
+          for (let col = 0; col < 2; col++) {
+            const cellId = `${row}_${col}`;
+            if (!roomData.value.grid?.[cellId]) {
+              emptyCells.push({ row, col });
+            }
           }
         }
-      }
-      
-      if (emptyCells.length === 0) {
-        notificationStore.showNotification('No empty cells available on creator side', 'warning')
-        return
-      }
-      
-      let successCount = 0
-      let itemIndex = 0
-      
-      // Add items to empty cells
-      for (let i = 0; i < Math.min(emptyCells.length, selectedSet.items.length); i++) {
-        const position = emptyCells[i]
-        const entry = selectedSet.items[itemIndex++ % selectedSet.items.length]
         
-        try {
+        if (emptyCells.length === 0) {
+          throw new Error('No empty cells available on creator side');
+        }
+        
+        console.log("Found", emptyCells.length, "empty cells");
+        
+        let successCount = 0;
+        
+        // Add items to empty cells
+        for (let i = 0; i < Math.min(emptyCells.length, selectedSet.items.length); i++) {
+          const position = emptyCells[i];
+          const entry = selectedSet.items[i];
+          
+          if (!entry || !entry.phrase || !entry.punishment) {
+            console.warn('Invalid entry format at index', i, entry);
+            continue;
+          }
+          
+          console.log("Adding cell at position", position, "with entry", entry);
+          
           const result = await roomStore.addCell(
             position, 
             entry.phrase, 
             entry.punishment, 
             'left'
-          )
+          );
+          
           if (result.success) {
-            successCount++
+            successCount++;
+          } else {
+            console.error('Error adding cell:', result.error);
           }
-        } catch (error) {
-          console.error('Error adding cell from set:', error)
         }
-      }
-      
-      if (successCount > 0) {
-        notificationStore.showNotification(`Added ${successCount} creator cells`, 'success')
-        selectedCreatorSet.value = '' // Reset selection
-      } else {
-        notificationStore.showNotification('Failed to add cells', 'error')
+        
+        if (successCount > 0) {
+          notificationStore.showNotification(`Added ${successCount} creator cells`, 'success');
+          selectedCreatorSet.value = ''; // Reset selection
+        } else {
+          throw new Error('Failed to add any cells');
+        }
+      } catch (error) {
+        console.error('Error applying creator set:', error);
+        notificationStore.showNotification(
+          `Error applying creator set: ${error.message}`, 
+          'error'
+        );
       }
     }
     
@@ -451,59 +474,82 @@ export default {
     async function applyPlayerSet() {
       if (!selectedPlayerSet.value) return
       
-      const selectedSet = wordSetStore.playerPunishmentSets.find(
-        set => set.id === selectedPlayerSet.value
-      )
-      
-      if (!selectedSet || !selectedSet.items || selectedSet.items.length === 0) {
-        notificationStore.showNotification('Selected set is empty', 'error')
-        return
-      }
-      
-      // Find empty cells on the player side
-      const emptyCells = []
-      for (let row = 0; row < roomData.value.gridHeight; row++) {
-        for (let col = 2; col < 4; col++) {
-          const cellId = `${row}_${col}`
-          if (!roomData.value.grid?.[cellId]) {
-            emptyCells.push({ row, col })
+      try {
+        console.log("Applying player set:", selectedPlayerSet.value);
+        
+        // Find the selected set in our store
+        const selectedSet = wordSetStore.playerPunishmentSets.find(
+          set => set.id === selectedPlayerSet.value
+        );
+        
+        if (!selectedSet) {
+          throw new Error('Selected set not found');
+        }
+        
+        console.log("Found set:", selectedSet.name, "with", selectedSet.items.length, "items");
+        console.log("First item sample:", selectedSet.items[0]);
+        
+        if (!selectedSet.items || selectedSet.items.length === 0) {
+          throw new Error('Selected set is empty');
+        }
+        
+        // Find empty cells on the player side
+        const emptyCells = [];
+        for (let row = 0; row < roomData.value.gridHeight; row++) {
+          for (let col = 2; col < 4; col++) {
+            const cellId = `${row}_${col}`;
+            if (!roomData.value.grid?.[cellId]) {
+              emptyCells.push({ row, col });
+            }
           }
         }
-      }
-      
-      if (emptyCells.length === 0) {
-        notificationStore.showNotification('No empty cells available on player side', 'warning')
-        return
-      }
-      
-      let successCount = 0
-      let itemIndex = 0
-      
-      // Add items to empty cells
-      for (let i = 0; i < Math.min(emptyCells.length, selectedSet.items.length); i++) {
-        const position = emptyCells[i]
-        const entry = selectedSet.items[itemIndex++ % selectedSet.items.length]
         
-        try {
+        if (emptyCells.length === 0) {
+          throw new Error('No empty cells available on player side');
+        }
+        
+        console.log("Found", emptyCells.length, "empty cells");
+        
+        let successCount = 0;
+        
+        // Add items to empty cells
+        for (let i = 0; i < Math.min(emptyCells.length, selectedSet.items.length); i++) {
+          const position = emptyCells[i];
+          const entry = selectedSet.items[i];
+          
+          if (!entry || !entry.phrase || !entry.punishment) {
+            console.warn('Invalid entry format at index', i, entry);
+            continue;
+          }
+          
+          console.log("Adding cell at position", position, "with entry", entry);
+          
           const result = await roomStore.addCell(
             position, 
             entry.phrase, 
             entry.punishment, 
             'right'
-          )
+          );
+          
           if (result.success) {
-            successCount++
+            successCount++;
+          } else {
+            console.error('Error adding cell:', result.error);
           }
-        } catch (error) {
-          console.error('Error adding cell from set:', error)
         }
-      }
-      
-      if (successCount > 0) {
-        notificationStore.showNotification(`Added ${successCount} player cells`, 'success')
-        selectedPlayerSet.value = '' // Reset selection
-      } else {
-        notificationStore.showNotification('Failed to add cells', 'error')
+        
+        if (successCount > 0) {
+          notificationStore.showNotification(`Added ${successCount} player cells`, 'success');
+          selectedPlayerSet.value = ''; // Reset selection
+        } else {
+          throw new Error('Failed to add any cells');
+        }
+      } catch (error) {
+        console.error('Error applying player set:', error);
+        notificationStore.showNotification(
+          `Error applying player set: ${error.message}`, 
+          'error'
+        );
       }
     }
     
