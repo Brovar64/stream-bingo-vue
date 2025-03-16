@@ -1,3 +1,4 @@
+
 <template>
   <div class="container py-8">
     <h1 class="title mb-8">Manage Sets</h1>
@@ -197,20 +198,10 @@
           <textarea 
             v-model="itemInput" 
             class="form-control w-full h-48 font-mono"
-            :placeholder="`Enter each ${getSetTypeLabel(currentSetType).toLowerCase()} item on a new line`"
+            :placeholder="`Enter each ${currentSetType === 'word' ? 'word' : 'punishment'} on a new line`"
           ></textarea>
           <div v-if="parsedItems.length > wordSetStore.MAX_ITEMS_PER_SET" class="text-xs text-warning mt-1">
             Only the first {{ wordSetStore.MAX_ITEMS_PER_SET }} items will be saved
-          </div>
-          
-          <!-- Format help for punishment sets -->
-          <div v-if="currentSetType !== 'word'" class="mt-2 text-xs text-gray-400">
-            <strong>Format:</strong> Each line should be in the format "Phrase|Punishment"
-            <div class="mt-1 bg-background-lighter p-2 rounded font-mono">
-              Example:<br>
-              Some event happens|Do 10 pushups<br>
-              Another trigger|Drink water
-            </div>
           </div>
         </div>
         
@@ -274,28 +265,11 @@ export default {
     const parsedItems = computed(() => {
       if (!itemInput.value.trim()) return []
       
-      // For word sets, just return the trimmed non-empty lines
-      if (currentSetType.value === 'word') {
-        return itemInput.value
-          .split('\n')
-          .map(item => item.trim())
-          .filter(item => item.length > 0)
-      }
-      
-      // For punishment sets, try to parse as phrase|punishment pairs
+      // For all set types, just return the trimmed non-empty lines
       return itemInput.value
         .split('\n')
-        .map(line => {
-          const parts = line.split('|')
-          if (parts.length === 2 && parts[0].trim() && parts[1].trim()) {
-            return {
-              phrase: parts[0].trim(),
-              punishment: parts[1].trim()
-            }
-          }
-          return null
-        })
-        .filter(item => item !== null)
+        .map(item => item.trim())
+        .filter(item => item.length > 0)
     })
     
     // Load sets on initialization
@@ -330,15 +304,8 @@ export default {
       currentSetId.value = set.id
       newSetName.value = set.name
       
-      // Format items based on type
-      if (type === 'word') {
-        itemInput.value = set.items.join('\n')
-      } else {
-        // For punishment sets, format as "phrase|punishment"
-        itemInput.value = set.items
-          .map(item => `${item.phrase}|${item.punishment}`)
-          .join('\n')
-      }
+      // Format items - all sets are now simple string arrays
+      itemInput.value = set.items.join('\n')
       
       showModal.value = true
     }
@@ -359,25 +326,13 @@ export default {
       if (!newSetName.value.trim() || parsedItems.value.length === 0) return
       
       try {
-        // Simple debugging - log what we're trying to save
         console.log(`Saving ${currentSetType.value} set with ${parsedItems.value.length} items`);
-        console.log('First item example:', JSON.stringify(parsedItems.value[0]));
         
         const setData = {
           name: newSetName.value.trim(),
           type: currentSetType.value,
           items: parsedItems.value
         };
-        
-        // Important debug message - examine what's being sent to the store
-        console.log(`About to save set data:`, 
-          JSON.stringify({
-            name: setData.name,
-            type: setData.type,
-            itemCount: setData.items.length,
-            itemsSample: setData.items.slice(0, 2)
-          })
-        );
         
         // Save to store
         const setId = await wordSetStore.saveWordSet(setData, currentSetId.value);
