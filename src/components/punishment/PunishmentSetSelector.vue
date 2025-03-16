@@ -7,7 +7,7 @@
         <label class="text-sm">Creator Punishments</label>
         <select v-model="selectedCreatorSet" class="form-control">
           <option value="">Select a set...</option>
-          <option v-for="(set, index) in creatorSets" :key="`creator-${index}`" :value="index">
+          <option v-for="set in creatorSets" :key="set.id" :value="set.id">
             {{ set.name }} ({{ set.items.length }})
           </option>
         </select>
@@ -26,7 +26,7 @@
         <label class="text-sm">Player Punishments</label>
         <select v-model="selectedPlayerSet" class="form-control">
           <option value="">Select a set...</option>
-          <option v-for="(set, index) in playerSets" :key="`player-${index}`" :value="index">
+          <option v-for="set in playerSets" :key="set.id" :value="set.id">
             {{ set.name }} ({{ set.items.length }})
           </option>
         </select>
@@ -63,29 +63,63 @@ export default {
       selectedPlayerSet: ''
     }
   },
+  created() {
+    console.log('PunishmentSetSelector created with:', {
+      creatorSets: this.creatorSets.length,
+      playerSets: this.playerSets.length
+    });
+    
+    if (this.creatorSets.length > 0) {
+      console.log('Creator sets sample:', this.creatorSets[0]);
+    }
+    
+    if (this.playerSets.length > 0) {
+      console.log('Player sets sample:', this.playerSets[0]);
+    }
+  },
   methods: {
     applyCreatorSet() {
-      if (this.selectedCreatorSet === '') return
+      if (this.selectedCreatorSet === '') return;
       
-      const setIndex = parseInt(this.selectedCreatorSet)
-      if (isNaN(setIndex) || !this.creatorSets[setIndex]) return
+      console.log('Applying creator set with ID:', this.selectedCreatorSet);
       
-      this.$emit('apply-creator-set', setIndex)
+      // Find the set with this ID
+      const selectedSet = this.creatorSets.find(set => set.id === this.selectedCreatorSet);
+      
+      if (!selectedSet) {
+        console.error('Could not find creator set with ID:', this.selectedCreatorSet);
+        return;
+      }
+      
+      console.log('Found set:', selectedSet.name, 'with', selectedSet.items.length, 'items');
+      
+      // Emit the event with the selected set id
+      this.$emit('apply-creator-set', this.selectedCreatorSet);
       
       // Reset selection after applying
-      this.selectedCreatorSet = ''
+      this.selectedCreatorSet = '';
     },
     
     applyPlayerSet() {
-      if (this.selectedPlayerSet === '') return
+      if (this.selectedPlayerSet === '') return;
       
-      const setIndex = parseInt(this.selectedPlayerSet)
-      if (isNaN(setIndex) || !this.playerSets[setIndex]) return
+      console.log('Applying player set with ID:', this.selectedPlayerSet);
       
-      this.$emit('apply-player-set', setIndex)
+      // Find the set with this ID
+      const selectedSet = this.playerSets.find(set => set.id === this.selectedPlayerSet);
+      
+      if (!selectedSet) {
+        console.error('Could not find player set with ID:', this.selectedPlayerSet);
+        return;
+      }
+      
+      console.log('Found set:', selectedSet.name, 'with', selectedSet.items.length, 'items');
+      
+      // Emit the event with the selected set id
+      this.$emit('apply-player-set', this.selectedPlayerSet);
       
       // Reset selection after applying
-      this.selectedPlayerSet = ''
+      this.selectedPlayerSet = '';
     }
   }
 }
