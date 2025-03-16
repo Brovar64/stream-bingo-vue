@@ -77,68 +77,20 @@
       </div>
       
       <!-- Game Grid -->
-      <div class="card mb-6">
-        <div class="grid-container active-mode">
-          <div class="grid-header">
-            <div class="side-label left-label">Host Side</div>
-            <div class="side-label right-label">Players Side</div>
-          </div>
-          
-          <div class="punishment-grid" :style="`grid-template-rows: repeat(${roomData.gridHeight}, 1fr);`">
-            <!-- Grid cells -->
-            <template v-for="row in roomData.gridHeight" :key="`row-${row}`">
-              <template v-for="col in 4" :key="`${row-1}_${col-1}`">
-                <div 
-                  :class="['grid-cell', 
-                    col <= 2 ? 'creator-side' : 'player-side',
-                    cellContent(`${row-1}_${col-1}`) ? 'filled' : '',
-                    isCellCalled(`${row-1}_${col-1}`) ? 'called' : '',
-                    isPunishmentCompleted(`${row-1}_${col-1}`) ? 'completed' : ''
-                  ]"
-                >
-                  <div v-if="cellContent(`${row-1}_${col-1}`)" class="cell-content">
-                    <div class="phrase">{{ cellContent(`${row-1}_${col-1}`).phrase }}</div>
-                    <div class="punishment">{{ cellContent(`${row-1}_${col-1}`).punishment }}</div>
-                    
-                    <!-- Voting UI -->
-                    <PunishmentVotingUI
-                      v-if="isCellCalled(`${row-1}_${col-1}`) && !isPunishmentCompleted(`${row-1}_${col-1}`)"
-                      :votes="cellContent(`${row-1}_${col-1}`).votes || { yes: 0, no: 0 }"
-                      :user-voted="getUserVote(`${row-1}_${col-1}`)"
-                      @vote="(vote) => votePunishment(`${row-1}_${col-1}`, vote)"
-                    />
-                    
-                    <!-- Completed indicator -->
-                    <div v-if="isPunishmentCompleted(`${row-1}_${col-1}`)" class="completed-indicator">
-                      ✓ Punishment completed
-                    </div>
-                  </div>
-                </div>
-              </template>
-            </template>
-          </div>
-        </div>
+      <div class="mb-6">
+        <PunishmentPlayerGrid 
+          :grid-height="roomData.gridHeight"
+          :grid="roomData.grid || {}"
+          :called-out-cells="roomData.calledOutCells || []"
+          :completed-punishments="roomData.completedPunishments || []"
+          :punishment-votes="roomData.punishmentVotes || {}"
+          :username="username"
+          @vote="votePunishment"
+        />
       </div>
       
       <!-- Players section -->
-      <div class="card">
-        <h2 class="text-xl font-semibold mb-4">Players</h2>
-        <div v-if="!roomData.players || roomData.players.length === 0" class="text-center py-4 text-gray-400">
-          No players have joined yet.
-        </div>
-        <div v-else class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-          <div 
-            v-for="(player, index) in roomData.players" 
-            :key="index"
-            :class="['bg-background-lighter p-3 rounded-lg', player.nickname === username ? 'border-2 border-primary' : '']"
-          >
-            <span class="font-medium">{{ player.nickname }}</span>
-            <div class="text-xs text-gray-400 mt-1">
-              Joined: {{ formatTime(player.joinedAt) }}
-            </div>
-          </div>
-        </div>
-      </div>
+      <PunishmentPlayerList :players="roomData.players || []" />
     </div>
   </div>
 </template>
@@ -149,7 +101,8 @@ import { useRoute, useRouter } from 'vue-router'
 import { usePunishmentRoomStore } from '@/stores/punishment-room'
 import { useNotificationStore } from '@/stores/notification'
 import { useAuthStore } from '@/stores/auth'
-import PunishmentVotingUI from '@/components/punishment/PunishmentVotingUI.vue'
+import PunishmentPlayerGrid from '@/components/punishment/PunishmentPlayerGrid.vue'
+import PunishmentPlayerList from '@/components/punishment/PunishmentPlayerList.vue'
 
 // Set up hooks
 const route = useRoute()
@@ -243,35 +196,6 @@ async function retryLoading() {
   }
 }
 
-// Format timestamp
-function formatTime(timestamp) {
-  if (!timestamp) return 'Unknown'
-  
-  const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp)
-  return date.toLocaleTimeString()
-}
-
-// Get content for a specific cell
-function cellContent(cellId) {
-  return roomData.value?.grid?.[cellId] || null
-}
-
-// Check if a cell is called out
-function isCellCalled(cellId) {
-  return roomData.value?.calledOutCells?.includes(cellId) || false
-}
-
-// Check if a punishment is completed
-function isPunishmentCompleted(cellId) {
-  return roomData.value?.completedPunishments?.includes(cellId) || false
-}
-
-// Get user's vote for a particular cell
-function getUserVote(cellId) {
-  const voteKey = `${cellId}_${username.value}`
-  return roomData.value?.punishmentVotes?.[voteKey] || null
-}
-
 // Vote on a punishment
 async function votePunishment(cellId, vote) {
   try {
@@ -297,85 +221,6 @@ onUnmounted(() => {
 <style scoped>
 .status-badge {
   @apply text-xs py-1 px-2 rounded-full text-white;
-}
-
-/* Grid Layout */
-.grid-container {
-  @apply relative my-6;
-}
-
-.grid-header {
-  @apply flex mb-0;
-}
-
-.side-label {
-  @apply py-2 text-center font-semibold text-sm flex-1;
-}
-
-.left-label {
-  @apply bg-blue-500 bg-opacity-20 rounded-t-lg;
-}
-
-.right-label {
-  @apply bg-green-500 bg-opacity-20 rounded-t-lg;
-}
-
-.punishment-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  grid-gap: 8px;
-  @apply p-4 bg-background-card rounded-lg;
-}
-
-.grid-cell {
-  aspect-ratio: 1;
-  min-height: 120px;
-  @apply bg-background-lighter rounded p-2 relative transition-colors;
-}
-
-.creator-side {
-  @apply bg-blue-900 bg-opacity-10;
-}
-
-.player-side {
-  @apply bg-green-900 bg-opacity-10;
-}
-
-.grid-cell.filled {
-  @apply cursor-default;
-}
-
-.grid-cell.called {
-  @apply border-2;
-}
-
-.grid-cell.called.creator-side {
-  @apply border-blue-500;
-}
-
-.grid-cell.called.player-side {
-  @apply border-green-500;
-}
-
-.grid-cell.completed {
-  @apply opacity-50;
-}
-
-.cell-content {
-  @apply h-full flex flex-col justify-between;
-  font-size: 0.85rem;
-}
-
-.phrase {
-  @apply font-medium mb-1;
-}
-
-.punishment {
-  @apply text-xs italic text-gray-400;
-}
-
-.completed-indicator {
-  @apply mt-2 text-xs text-center text-success;
 }
 
 .waiting-animation {
