@@ -101,29 +101,12 @@
                     <div class="punishment">{{ cellContent(`${row-1}_${col-1}`).punishment }}</div>
                     
                     <!-- Voting UI -->
-                    <div v-if="isCellCalled(`${row-1}_${col-1}`) && !isPunishmentCompleted(`${row-1}_${col-1}`)" class="vote-ui">
-                      <div class="vote-count mb-1">
-                        <span class="yes">👍 {{ cellContent(`${row-1}_${col-1}`).votes?.yes || 0 }}</span>
-                        <span class="no">👎 {{ cellContent(`${row-1}_${col-1}`).votes?.no || 0 }}</span>
-                      </div>
-                      
-                      <div class="vote-buttons">
-                        <button 
-                          @click.stop="votePunishment(`${row-1}_${col-1}`, 'yes')" 
-                          :class="['vote-btn yes', hasVoted(`${row-1}_${col-1}`, 'yes') ? 'voted' : '']"
-                          title="Vote that punishment was completed"
-                        >
-                          Completed
-                        </button>
-                        <button 
-                          @click.stop="votePunishment(`${row-1}_${col-1}`, 'no')" 
-                          :class="['vote-btn no', hasVoted(`${row-1}_${col-1}`, 'no') ? 'voted' : '']"
-                          title="Vote that punishment was not completed"
-                        >
-                          Not Done
-                        </button>
-                      </div>
-                    </div>
+                    <PunishmentVotingUI
+                      v-if="isCellCalled(`${row-1}_${col-1}`) && !isPunishmentCompleted(`${row-1}_${col-1}`)"
+                      :votes="cellContent(`${row-1}_${col-1}`).votes || { yes: 0, no: 0 }"
+                      :user-voted="getUserVote(`${row-1}_${col-1}`)"
+                      @vote="(vote) => votePunishment(`${row-1}_${col-1}`, vote)"
+                    />
                     
                     <!-- Completed indicator -->
                     <div v-if="isPunishmentCompleted(`${row-1}_${col-1}`)" class="completed-indicator">
@@ -166,6 +149,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { usePunishmentRoomStore } from '@/stores/punishment-room'
 import { useNotificationStore } from '@/stores/notification'
 import { useAuthStore } from '@/stores/auth'
+import PunishmentVotingUI from '@/components/punishment/PunishmentVotingUI.vue'
 
 // Set up hooks
 const route = useRoute()
@@ -282,6 +266,12 @@ function isPunishmentCompleted(cellId) {
   return roomData.value?.completedPunishments?.includes(cellId) || false
 }
 
+// Get user's vote for a particular cell
+function getUserVote(cellId) {
+  const voteKey = `${cellId}_${username.value}`
+  return roomData.value?.punishmentVotes?.[voteKey] || null
+}
+
 // Vote on a punishment
 async function votePunishment(cellId, vote) {
   try {
@@ -296,12 +286,6 @@ async function votePunishment(cellId, vote) {
     console.error('Error voting on punishment:', err)
     notificationStore.showNotification('Error submitting vote', 'error')
   }
-}
-
-// Check if user has voted for this cell
-function hasVoted(cellId, voteType) {
-  const voteKey = `${cellId}_${username.value}`
-  return roomData.value?.punishmentVotes?.[voteKey] === voteType
 }
 
 // Cleanup on component unmount
@@ -388,46 +372,6 @@ onUnmounted(() => {
 
 .punishment {
   @apply text-xs italic text-gray-400;
-}
-
-.vote-ui {
-  @apply mt-2 flex flex-col text-xs;
-}
-
-.vote-count {
-  @apply flex justify-center gap-4;
-}
-
-.yes {
-  @apply text-green-400;
-}
-
-.no {
-  @apply text-red-400;
-}
-
-.vote-buttons {
-  @apply flex gap-1 justify-center;
-}
-
-.vote-btn {
-  @apply px-2 py-1 rounded text-xs border;
-}
-
-.vote-btn.yes {
-  @apply border-green-500 text-green-400;
-}
-
-.vote-btn.yes.voted {
-  @apply bg-green-500 bg-opacity-20 font-bold;
-}
-
-.vote-btn.no {
-  @apply border-red-500 text-red-400;
-}
-
-.vote-btn.no.voted {
-  @apply bg-red-500 bg-opacity-20 font-bold;
 }
 
 .completed-indicator {
