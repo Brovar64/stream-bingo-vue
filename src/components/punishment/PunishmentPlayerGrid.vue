@@ -31,12 +31,6 @@
             >
               <div v-if="cellContent(`${row-1}_${col-1}`)">
                 <div class="cell-content">
-                  <!-- Cell label indicator -->
-                  <div class="cell-indicator">
-                    <span v-if="col <= 2" class="creator-indicator">HOST</span>
-                    <span v-else class="player-indicator">PLAYER</span>
-                  </div>
-                  
                   <div class="phrase">{{ cellContent(`${row-1}_${col-1}`).phrase }}</div>
                   
                   <div class="punishment-box">
@@ -45,7 +39,7 @@
                   </div>
                   
                   <!-- Voting UI -->
-                  <div v-if="isCellCalled(`${row-1}_${col-1}`) && !isPunishmentCompleted(`${row-1}_${col-1}`)" class="voting-container">
+                  <div v-if="isCellCalled(`${row-1}_${col-1}`) && !isPunishmentCompleted(`${row-1}_${col-1}`)">
                     <PunishmentVotingUI
                       :votes="cellContent(`${row-1}_${col-1}`).votes || { yes: 0, no: 0 }"
                       :user-voted="getUserVote(`${row-1}_${col-1}`)"
@@ -54,12 +48,14 @@
                   </div>
                   
                   <!-- Completed badge -->
-                  <div v-if="isPunishmentCompleted(`${row-1}_${col-1}`)" class="completed-badge">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                      <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
-                      <polyline points="22 4 12 14.01 9 11.01"></polyline>
-                    </svg>
-                    <span>COMPLETED</span>
+                  <div v-if="isPunishmentCompleted(`${row-1}_${col-1}`)">
+                    <div class="completed-badge">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                        <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                      </svg>
+                      <span>COMPLETED</span>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -173,8 +169,7 @@ export default {
 /* Grid Layout */
 .grid-container {
   @apply relative rounded-lg bg-background-card transition-all duration-300 ease-in-out;
-  height: calc(100vh - 300px);
-  max-height: 700px;
+  height: 12vh; /* Set to 12% of viewport height */
   display: flex;
   flex-direction: column;
 }
@@ -204,14 +199,14 @@ export default {
 .punishment-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  grid-gap: 8px;
-  @apply p-4 bg-background-card rounded-lg flex-1 overflow-y-auto;
+  grid-gap: 10px; /* Consistent gaps */
+  @apply p-4 bg-background-card rounded-lg flex-1 overflow-hidden; /* Removed overflow-y-auto */
 }
 
 .grid-cell {
   aspect-ratio: 1;
   @apply bg-background-lighter rounded-lg p-0 relative cursor-default transition-all duration-200 shadow-md overflow-hidden flex items-center justify-center;
-  min-height: 140px;
+  min-height: 100%;
 }
 
 .creator-side {
@@ -228,22 +223,6 @@ export default {
 
 .cell-content {
   @apply h-full w-full flex flex-col p-3 relative;
-}
-
-.cell-indicator {
-  @apply absolute -top-1 -right-1 z-10;
-}
-
-.creator-indicator, .player-indicator {
-  @apply text-[0.6rem] font-bold tracking-wider py-1 px-2 opacity-90 rounded-bl-lg;
-}
-
-.creator-indicator {
-  @apply bg-blue-600 text-white;
-}
-
-.player-indicator {
-  @apply bg-green-600 text-white;
 }
 
 .phrase {
@@ -283,10 +262,6 @@ export default {
   font-size: 0.7rem;
 }
 
-.voting-container {
-  @apply mt-2 p-1 rounded-lg bg-background-dark bg-opacity-40;
-}
-
 .btn-icon {
   @apply p-2 rounded-full bg-background-lighter hover:bg-background-card transition-colors;
 }
@@ -322,14 +297,6 @@ export default {
 
 /* Media queries for responsive layout */
 @media (max-width: 768px) {
-  .grid-container {
-    height: calc(100vh - 250px);
-  }
-  
-  .grid-cell {
-    min-height: 100px;
-  }
-  
   .phrase {
     font-size: 0.75rem;
   }
@@ -343,11 +310,7 @@ export default {
 @media (max-width: 640px) {
   .grid-container.fullscreen .punishment-grid {
     grid-template-columns: repeat(2, 1fr);
-    grid-gap: 8px;
-  }
-  
-  .grid-container.fullscreen .grid-cell {
-    min-height: 120px;
+    grid-gap: 10px;
   }
   
   .grid-legend {
