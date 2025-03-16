@@ -27,7 +27,26 @@
       </button>
     </div>
     
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+    <!-- Game Mode Tabs -->
+    <div class="mb-6">
+      <div class="flex space-x-2 border-b border-gray-700">
+        <button 
+          @click="activeTab = 'classic'" 
+          :class="['tab-button', activeTab === 'classic' ? 'active' : '']"
+        >
+          Classic Bingo
+        </button>
+        <button 
+          @click="activeTab = 'punishment'" 
+          :class="['tab-button', activeTab === 'punishment' ? 'active' : '']"
+        >
+          Punishment Bingo
+        </button>
+      </div>
+    </div>
+    
+    <!-- Classic Bingo Content -->
+    <div v-if="activeTab === 'classic'" class="grid grid-cols-1 lg:grid-cols-3 gap-8">
       <!-- Create Room Card -->
       <div class="card">
         <h2 class="text-xl font-semibold mb-4">Create a Bingo Room</h2>
@@ -166,6 +185,150 @@
         </div>
       </div>
     </div>
+    
+    <!-- Punishment Bingo Content -->
+    <div v-if="activeTab === 'punishment'" class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <!-- Create Punishment Room Card -->
+      <div class="card">
+        <h2 class="text-xl font-semibold mb-4">Create Punishment Room</h2>
+        <form @submit.prevent="createPunishmentRoom" class="space-y-4">
+          <div class="form-group">
+            <label for="punishmentRoomCode">Room Code</label>
+            <div class="flex">
+              <input 
+                type="text" 
+                id="punishmentRoomCode" 
+                v-model="newPunishmentRoom.code"
+                class="form-control"
+                placeholder="Enter 4-6 character code"
+                maxlength="6"
+                required
+                autocomplete="off"
+              >
+              <button 
+                type="button"
+                @click="generatePunishmentCode"
+                class="ml-2 bg-background-lighter p-2 rounded hover:bg-gray-700"
+                title="Generate random code"
+              >
+                🎲
+              </button>
+            </div>
+          </div>
+          
+          <div class="form-group">
+            <label for="gridHeight">Grid Height</label>
+            <select id="gridHeight" v-model="newPunishmentRoom.gridHeight" class="form-control">
+              <option value="3">3 Rows (Small)</option>
+              <option value="4">4 Rows (Medium)</option>
+              <option value="5">5 Rows (Large)</option>
+            </select>
+            <p class="text-xs text-gray-400 mt-1">
+              Grid will be {{ newPunishmentRoom.gridHeight }} rows × 4 columns (2 for each side)
+            </p>
+          </div>
+          
+          <div class="form-group">
+            <div class="bg-background-lighter p-3 rounded mb-4">
+              <h3 class="text-sm font-semibold mb-2">How Punishment Bingo Works:</h3>
+              <ul class="text-xs text-gray-400 space-y-1 list-disc list-inside">
+                <li>Grid divides into Creator side (left) and Players side (right)</li>
+                <li>Each cell contains a phrase and a punishment</li>
+                <li>When an event happens, the corresponding punishment must be completed</li>
+                <li>Players vote if the punishment was done correctly</li>
+              </ul>
+            </div>
+          </div>
+          
+          <button 
+            type="submit" 
+            class="btn btn-primary w-full"
+            :disabled="punishmentLoading"
+          >
+            {{ punishmentLoading ? 'Creating...' : 'Create Punishment Room' }}
+          </button>
+        </form>
+      </div>
+      
+      <!-- Join Punishment Room Card -->
+      <div class="card">
+        <h2 class="text-xl font-semibold mb-4">Join Punishment Room</h2>
+        <form @submit.prevent="handleJoinPunishmentRoom" class="space-y-4">
+          <div class="form-group">
+            <label for="joinPunishmentCode">Room Code</label>
+            <input 
+              type="text" 
+              id="joinPunishmentCode" 
+              v-model="joinPunishmentData.code"
+              class="form-control"
+              placeholder="Enter room code"
+              maxlength="6"
+              required
+              autocomplete="off"
+            >
+          </div>
+          
+          <button 
+            type="submit" 
+            class="btn btn-primary w-full"
+            :disabled="joinPunishmentLoading"
+          >
+            {{ joinPunishmentLoading ? 'Joining...' : 'Join Room' }}
+          </button>
+        </form>
+      </div>
+      
+      <!-- Your Punishment Rooms Card -->
+      <div class="card">
+        <h2 class="text-xl font-semibold mb-4">Your Punishment Rooms</h2>
+        
+        <div v-if="punishmentLoading" class="text-center py-8">
+          <div class="spinner mx-auto mb-4"></div>
+          <p>Loading your rooms...</p>
+        </div>
+        
+        <div v-else-if="punishmentRooms.length === 0" class="text-center py-8 text-gray-400">
+          <p>You haven't created any punishment rooms yet.</p>
+        </div>
+        
+        <div v-else class="space-y-4">
+          <div v-for="room in punishmentRooms" :key="room.id" class="bg-background-lighter p-4 rounded-lg">
+            <div class="flex justify-between items-start">
+              <div>
+                <h3 class="font-semibold">Room: {{ room.id }}</h3>
+                <p class="text-sm text-gray-400">{{ room.gridHeight }} rows × 4 columns</p>
+                <div class="flex items-center mt-1">
+                  <span 
+                    :class="['status-badge', room.status === 'active' ? 'bg-success' : 'bg-warning']"
+                  >
+                    {{ room.status === 'active' ? 'Active' : 'Setup' }}
+                  </span>
+                  <span class="ml-2 text-sm text-gray-400">
+                    {{ room.players?.length || 0 }} players
+                  </span>
+                </div>
+              </div>
+              
+              <div class="flex space-x-2">
+                <button 
+                  @click="navigateToPunishmentRoom(room.id)"
+                  class="btn btn-primary py-1 px-2 text-sm"
+                >
+                  Manage
+                </button>
+                <button 
+                  @click="confirmDeletePunishmentRoom(room.id)"
+                  class="btn bg-error hover:bg-red-700 py-1 px-2 text-sm"
+                >
+                  Delete
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    
   </div>
 </template>
 
@@ -174,6 +337,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useRoomStore } from '@/stores/room'
+import { usePunishmentRoomStore } from '@/stores/punishment-room'
 import { useNotificationStore } from '@/stores/notification'
 
 export default {
@@ -182,11 +346,20 @@ export default {
     const router = useRouter()
     const authStore = useAuthStore()
     const roomStore = useRoomStore()
+    const punishmentRoomStore = usePunishmentRoomStore()
     const notificationStore = useNotificationStore()
     
     // State
+    const activeTab = ref('classic') // 'classic' or 'punishment'
     const loading = ref(false)
     const joinLoading = ref(false)
+    
+    // Punishment mode state
+    const punishmentLoading = ref(false)
+    const joinPunishmentLoading = ref(false)
+    const punishmentRooms = ref([])
+    
+    // Classic bingo state
     const newRoom = ref({
       code: '',
       gridSize: 5,
@@ -197,6 +370,15 @@ export default {
     })
     const userRooms = ref([])
     const wordSets = ref([])
+    
+    // Punishment bingo state
+    const newPunishmentRoom = ref({
+      code: '',
+      gridHeight: 4
+    })
+    const joinPunishmentData = ref({
+      code: ''
+    })
     
     // Computed properties
     const username = computed(() => authStore.username)
@@ -215,6 +397,9 @@ export default {
       loadWordSets()
       
       loading.value = false
+      
+      // Load punishment rooms (temporarily commented until backend is implemented)
+      // loadPunishmentRooms()
     })
     
     // Load word sets from local storage
@@ -230,7 +415,25 @@ export default {
       }
     }
     
-    // Generate random room code
+    // Load punishment rooms
+    async function loadPunishmentRooms() {
+      punishmentLoading.value = true
+      
+      try {
+        // This would need to be implemented in the punishment room store
+        // punishmentRooms.value = await punishmentRoomStore.loadUserRooms()
+        
+        // For now, using an empty array as placeholder
+        punishmentRooms.value = []
+      } catch (error) {
+        console.error('Error loading punishment rooms:', error)
+        notificationStore.showNotification('Failed to load punishment rooms', 'error')
+      } finally {
+        punishmentLoading.value = false
+      }
+    }
+    
+    // Generate random room code for classic mode
     function generateRandomCode() {
       const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
       let code = ''
@@ -240,7 +443,17 @@ export default {
       newRoom.value.code = code
     }
     
-    // Create a new room
+    // Generate random room code for punishment mode
+    function generatePunishmentCode() {
+      const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789' // Avoiding confusing characters
+      let code = ''
+      for (let i = 0; i < 5; i++) {
+        code += chars.charAt(Math.floor(Math.random() * chars.length))
+      }
+      newPunishmentRoom.value.code = code
+    }
+    
+    // Create a new classic room
     async function createRoom() {
       loading.value = true
       
@@ -272,7 +485,31 @@ export default {
       }
     }
     
-    // Join room
+    // Create a new punishment room
+    async function createPunishmentRoom() {
+      punishmentLoading.value = true
+      
+      try {
+        const result = await punishmentRoomStore.createRoom(
+          parseInt(newPunishmentRoom.value.gridHeight)
+        )
+        
+        if (result.success) {
+          notificationStore.showNotification('Punishment room created successfully', 'success')
+          // Navigate to the punishment room admin page
+          router.push(`/punishment/${result.roomId}`)
+        } else {
+          throw new Error(result.error || 'Failed to create punishment room')
+        }
+      } catch (error) {
+        console.error('Create punishment room error:', error)
+        notificationStore.showNotification(`Failed to create punishment room: ${error.message}`, 'error')
+      } finally {
+        punishmentLoading.value = false
+      }
+    }
+    
+    // Join classic room
     async function handleJoinRoom() {
       joinLoading.value = true
       
@@ -290,19 +527,47 @@ export default {
       }
     }
     
-    // Navigate to room management
+    // Join punishment room
+    async function handleJoinPunishmentRoom() {
+      joinPunishmentLoading.value = true
+      
+      try {
+        const roomCode = joinPunishmentData.value.code.trim().toUpperCase()
+        joinPunishmentData.value.code = roomCode
+        
+        const result = await punishmentRoomStore.joinRoom(username.value, roomCode)
+        
+        if (result.success) {
+          router.push(`/punishment-play/${roomCode}`)
+        } else {
+          throw new Error(result.error || 'Failed to join punishment room')
+        }
+      } catch (error) {
+        console.error('Join punishment room error:', error)
+        notificationStore.showNotification(`Failed to join room: ${error.message}`, 'error')
+      } finally {
+        joinPunishmentLoading.value = false
+      }
+    }
+    
+    // Navigate to classic room management
     function navigateToRoom(roomId) {
       router.push(`/admin/room/${roomId}`)
     }
     
-    // Confirm and delete room
+    // Navigate to punishment room management
+    function navigateToPunishmentRoom(roomId) {
+      router.push(`/punishment/${roomId}`)
+    }
+    
+    // Confirm and delete classic room
     function confirmDeleteRoom(roomId) {
       if (confirm(`Are you sure you want to delete room ${roomId}? This cannot be undone.`)) {
         deleteRoom(roomId)
       }
     }
     
-    // Delete a room
+    // Delete a classic room
     async function deleteRoom(roomId) {
       loading.value = true
       
@@ -321,6 +586,15 @@ export default {
       }
     }
     
+    // Confirm and delete punishment room
+    function confirmDeletePunishmentRoom(roomId) {
+      if (confirm(`Are you sure you want to delete punishment room ${roomId}? This cannot be undone.`)) {
+        // This would need to be implemented in the punishment room store
+        // For now, just refresh the list
+        loadPunishmentRooms()
+      }
+    }
+    
     // Logout
     function logout() {
       authStore.logout()
@@ -333,6 +607,7 @@ export default {
     }
     
     return {
+      activeTab,
       loading,
       joinLoading,
       newRoom,
@@ -341,11 +616,21 @@ export default {
       wordSets,
       username,
       isTestUser,
+      punishmentLoading,
+      joinPunishmentLoading,
+      punishmentRooms,
+      newPunishmentRoom,
+      joinPunishmentData,
       generateRandomCode,
+      generatePunishmentCode,
       createRoom,
+      createPunishmentRoom,
       handleJoinRoom,
+      handleJoinPunishmentRoom,
       navigateToRoom,
+      navigateToPunishmentRoom,
       confirmDeleteRoom,
+      confirmDeletePunishmentRoom,
       logout,
       openLoginTab
     }
@@ -356,5 +641,13 @@ export default {
 <style scoped>
 .status-badge {
   @apply text-xs py-1 px-2 rounded-full text-white;
+}
+
+.tab-button {
+  @apply px-4 py-2 rounded-t-lg hover:bg-gray-700 transition-colors;
+}
+
+.tab-button.active {
+  @apply bg-background-card text-primary border-t border-l border-r border-gray-700 border-b-0;
 }
 </style>
