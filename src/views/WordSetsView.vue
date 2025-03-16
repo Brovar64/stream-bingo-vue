@@ -228,8 +228,8 @@ export default {
     // Load sets from local storage on initialization
     function loadSets() {
       const storedWordSets = localStorage.getItem('wordSets')
-      const storedPlayerPunishmentSets = localStorage.getItem('playerPunishmentSets')
-      const storedCreatorPunishmentSets = localStorage.getItem('creatorPunishmentSets')
+      const storedPlayerPunishmentSets = localStorage.getItem('bingoPlayerPunishmentSets')
+      const storedCreatorPunishmentSets = localStorage.getItem('bingoCreatorPunishmentSets')
       
       wordSets.value = storedWordSets ? JSON.parse(storedWordSets) : []
       playerPunishmentSets.value = storedPlayerPunishmentSets ? JSON.parse(storedPlayerPunishmentSets) : []
@@ -282,7 +282,14 @@ export default {
     
     // Save sets to local storage
     function saveSets(type) {
-      const storageKey = `${type.toLowerCase().replaceAll(' ', '')}Sets`
+      let storageKey = 'wordSets'; // Default for Word type
+      
+      if (type === 'Player Punishment') {
+        storageKey = 'bingoPlayerPunishmentSets';
+      } else if (type === 'Creator Punishment') {
+        storageKey = 'bingoCreatorPunishmentSets';
+      }
+      
       const sets = getSetsForType(type)
       localStorage.setItem(storageKey, JSON.stringify(sets))
     }
