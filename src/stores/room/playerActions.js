@@ -3,6 +3,7 @@ import { useNotificationStore } from '@/stores/notification'
 import { doc, getDoc, updateDoc, arrayUnion, Timestamp } from 'firebase/firestore'
 import { db } from '@/firebase'
 import { loadRoom } from './roomCrud'
+import { generateBingoGrid } from '@/utils/gridUtils'
 
 // Get dependencies
 const notificationStore = useNotificationStore()
@@ -87,6 +88,12 @@ export async function joinRoom(nickname, roomId) {
     // We load the room into the state but DON'T return whatever loadRoom returns
     await loadRoom(roomId)
     
+    // If room is active, make sure the player has a grid
+    if (roomData.status === 'active') {
+      console.log('[JOIN ROOM] Room is active, ensuring player has a grid')
+      await ensurePlayerHasGrid(nickname, roomId, roomData)
+    }
+    
     // Instead always return our standard success object
     console.log('[JOIN ROOM] Join process completed successfully')
     loading.value = false
@@ -96,6 +103,79 @@ export async function joinRoom(nickname, roomId) {
     notificationStore.showNotification(`Error joining room: ${error.message}`, 'error')
     loading.value = false
     return { success: false, error: error.message }
+  }
+}
+
+/**
+ * Ensure player has a grid in an active room
+ * @param {string} nickname - Player's nickname
+ * @param {string} roomId - Room ID
+ * @param {Object} roomData - Room data
+ */
+async function ensurePlayerHasGrid(nickname, roomId, roomData) {
+  console.log(`[JOIN ROOM] Checking if player ${nickname} has a grid`)
+  
+  try {
+    // Initialize playerGrids if it doesn't exist
+    if (!roomData.playerGrids) {
+      console.log('[JOIN ROOM] playerGrids not found, initializing')
+      const roomRef = doc(db, 'rooms', roomId)
+      await updateDoc(roomRef, { playerGrids: {} })
+      
+      // Reload room data to get the updated structure
+      await loadRoom(roomId)
+      roomData = currentRoom.value
+    }
+    
+    // Check if player already has a grid
+    const hasGrid = roomData.playerGrids && 
+                   roomData.playerGrids[nickname] && 
+                   Object.keys(roomData.playerGrids[nickname]).length > 0
+    
+    if (hasGrid) {
+      console.log(`[JOIN ROOM] Player ${nickname} already has a grid`)
+      return true
+    }
+    
+    console.log(`[JOIN ROOM] Player ${nickname} needs a grid, generating one`)
+    
+    // Generate a grid for this player
+    const gridSize = roomData.gridSize || 5
+    const words = roomData.words || []
+    
+    if (words.length < gridSize * gridSize) {
+      console.log(`[JOIN ROOM] Not enough words for grid generation. Have ${words.length}, need ${gridSize * gridSize}`)
+      notificationStore.showNotification('The game does not have enough words for your board', 'error')
+      return false
+    }
+    
+    // Generate the grid
+    const playerGrid = generateBingoGrid(words, gridSize)
+    
+    if (!playerGrid) {
+      console.log('[JOIN ROOM] Failed to generate player grid')
+      return false
+    }
+    
+    console.log(`[JOIN ROOM] Successfully generated grid with ${Object.keys(playerGrid).length} cells`)
+    
+    // Update the room document with the new grid
+    const roomRef = doc(db, 'rooms', roomId)
+    
+    // We need to use a specific update format for nested objects
+    await updateDoc(roomRef, {
+      [`playerGrids.${nickname}`]: playerGrid
+    })
+    
+    console.log(`[JOIN ROOM] Player grid saved to database for ${nickname}`)
+    
+    // Reload the room to get the updated data
+    await loadRoom(roomId)
+    
+    return true
+  } catch (error) {
+    console.error('[JOIN ROOM] Error ensuring player has grid:', error)
+    return false
   }
 }
 
