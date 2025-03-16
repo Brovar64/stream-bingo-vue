@@ -12,6 +12,7 @@ import {
   where,
   setDoc, 
   updateDoc, 
+  deleteDoc,
   arrayUnion, 
   arrayRemove, 
   serverTimestamp 
@@ -96,6 +97,47 @@ export const usePunishmentRoomStore = defineStore('punishmentRoom', () => {
       error.value = err.message
       loading.value = false
       return []
+    }
+  }
+  
+  /**
+   * Delete a punishment room
+   * @param {string} roomId - ID of the room to delete
+   */
+  async function deleteRoom(roomId) {
+    loading.value = true
+    error.value = null
+    
+    try {
+      // Get room reference
+      const roomRef = doc(db, 'punishmentRooms', roomId)
+      const roomDoc = await getDoc(roomRef)
+      
+      if (!roomDoc.exists()) {
+        notificationStore.showNotification('Room not found.', 'error')
+        return { success: false, error: 'Room not found' }
+      }
+      
+      // Check if user is the creator
+      const roomData = roomDoc.data()
+      if (roomData.creatorId !== authStore.user.uid) {
+        notificationStore.showNotification('You do not have permission to delete this room.', 'error')
+        return { success: false, error: 'Permission denied' }
+      }
+      
+      // Delete room
+      await deleteDoc(roomRef)
+      
+      notificationStore.showNotification(`Room ${roomId} deleted successfully.`, 'success')
+      
+      return { success: true }
+    } catch (err) {
+      console.error('Error deleting punishment room:', err)
+      error.value = err.message
+      loading.value = false
+      return { success: false, error: err.message }
+    } finally {
+      loading.value = false
     }
   }
   
@@ -487,6 +529,7 @@ export const usePunishmentRoomStore = defineStore('punishmentRoom', () => {
     // Methods
     loadRoom,
     loadUserRooms,
+    deleteRoom,
     createRoom,
     addCell,
     removeCell,
