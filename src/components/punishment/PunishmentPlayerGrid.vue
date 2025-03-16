@@ -1,6 +1,17 @@
 <template>
-  <div class="card">
-    <div class="grid-container active-mode">
+  <div class="card shadow-lg">
+    <div class="flex justify-between items-center mb-6">
+      <h2 class="text-xl font-semibold">Punishment Bingo</h2>
+      <div class="flex items-center gap-2">
+        <button class="btn-icon" title="Fullscreen" @click="toggleFullscreen">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path>
+          </svg>
+        </button>
+      </div>
+    </div>
+    
+    <div class="grid-container" :class="{'fullscreen': isFullscreen}">
       <div class="grid-header">
         <div class="side-label left-label">Host Side</div>
         <div class="side-label right-label">Players Side</div>
@@ -18,26 +29,64 @@
                 isPunishmentCompleted(`${row-1}_${col-1}`) ? 'completed' : ''
               ]"
             >
-              <div v-if="cellContent(`${row-1}_${col-1}`)" class="cell-content">
-                <div class="phrase">{{ cellContent(`${row-1}_${col-1}`).phrase }}</div>
-                <div class="punishment">{{ cellContent(`${row-1}_${col-1}`).punishment }}</div>
-                
-                <!-- Voting UI -->
-                <PunishmentVotingUI
-                  v-if="isCellCalled(`${row-1}_${col-1}`) && !isPunishmentCompleted(`${row-1}_${col-1}`)"
-                  :votes="cellContent(`${row-1}_${col-1}`).votes || { yes: 0, no: 0 }"
-                  :user-voted="getUserVote(`${row-1}_${col-1}`)"
-                  @vote="(vote) => $emit('vote', `${row-1}_${col-1}`, vote)"
-                />
-                
-                <!-- Completed indicator -->
-                <div v-if="isPunishmentCompleted(`${row-1}_${col-1}`)" class="completed-indicator">
-                  ✓ Punishment completed
+              <div v-if="cellContent(`${row-1}_${col-1}`)">
+                <div class="cell-content">
+                  <!-- Cell label indicator -->
+                  <div class="cell-indicator">
+                    <span v-if="col <= 2" class="creator-indicator">HOST</span>
+                    <span v-else class="player-indicator">PLAYER</span>
+                  </div>
+                  
+                  <div class="phrase">{{ cellContent(`${row-1}_${col-1}`).phrase }}</div>
+                  
+                  <div class="punishment-box">
+                    <div class="punishment-label">Punishment:</div>
+                    <div class="punishment">{{ cellContent(`${row-1}_${col-1}`).punishment }}</div>
+                  </div>
+                  
+                  <!-- Voting UI -->
+                  <div v-if="isCellCalled(`${row-1}_${col-1}`) && !isPunishmentCompleted(`${row-1}_${col-1}`)" class="voting-container">
+                    <PunishmentVotingUI
+                      :votes="cellContent(`${row-1}_${col-1}`).votes || { yes: 0, no: 0 }"
+                      :user-voted="getUserVote(`${row-1}_${col-1}`)"
+                      @vote="(vote) => $emit('vote', `${row-1}_${col-1}`, vote)"
+                    />
+                  </div>
+                  
+                  <!-- Completed badge -->
+                  <div v-if="isPunishmentCompleted(`${row-1}_${col-1}`)" class="completed-badge">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                      <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                    </svg>
+                    <span>COMPLETED</span>
+                  </div>
                 </div>
               </div>
             </div>
           </template>
         </template>
+      </div>
+      
+      <!-- Legend/Key when in fullscreen mode -->
+      <div v-if="isFullscreen" class="grid-legend">
+        <div class="legend-item">
+          <div class="legend-color creator-legend"></div>
+          <span class="legend-text">Host Punishments</span>
+        </div>
+        <div class="legend-item">
+          <div class="legend-color player-legend"></div>
+          <span class="legend-text">Player Punishments</span>
+        </div>
+        <div class="legend-item">
+          <div class="legend-badge">
+            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+              <polyline points="22 4 12 14.01 9 11.01"></polyline>
+            </svg>
+          </div>
+          <span class="legend-text">Completed Punishment</span>
+        </div>
       </div>
     </div>
   </div>
@@ -77,6 +126,11 @@ export default {
       required: true
     }
   },
+  data() {
+    return {
+      isFullscreen: false
+    }
+  },
   emits: ['vote'],
   methods: {
     // Get content for a specific cell
@@ -98,6 +152,18 @@ export default {
     getUserVote(cellId) {
       const voteKey = `${cellId}_${this.username}`
       return this.punishmentVotes[voteKey] || null
+    },
+    
+    // Toggle fullscreen mode
+    toggleFullscreen() {
+      this.isFullscreen = !this.isFullscreen
+      
+      // Toggle body class for global styling
+      if (this.isFullscreen) {
+        document.body.classList.add('grid-fullscreen-active')
+      } else {
+        document.body.classList.remove('grid-fullscreen-active')
+      }
     }
   }
 }
@@ -106,36 +172,46 @@ export default {
 <style scoped>
 /* Grid Layout */
 .grid-container {
-  @apply relative my-6;
+  @apply relative rounded-lg bg-background-card transition-all duration-300 ease-in-out;
+  height: calc(100vh - 300px);
+  max-height: 700px;
+  display: flex;
+  flex-direction: column;
+}
+
+.grid-container.fullscreen {
+  @apply fixed inset-0 z-50 bg-background-dark bg-opacity-95 p-4;
+  height: 100vh;
+  max-height: 100vh;
 }
 
 .grid-header {
-  @apply flex mb-0;
+  @apply flex mb-0 sticky top-0 z-10;
 }
 
 .side-label {
-  @apply py-2 text-center font-semibold text-sm flex-1;
+  @apply py-3 text-center font-bold text-base flex-1 transition-all duration-300;
 }
 
 .left-label {
-  @apply bg-blue-500 bg-opacity-20 rounded-t-lg;
+  @apply bg-blue-600 bg-opacity-20 rounded-t-lg text-blue-300;
 }
 
 .right-label {
-  @apply bg-green-500 bg-opacity-20 rounded-t-lg;
+  @apply bg-green-600 bg-opacity-20 rounded-t-lg text-green-300;
 }
 
 .punishment-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  grid-gap: 8px;
-  @apply p-4 bg-background-card rounded-lg;
+  grid-gap: 10px;
+  @apply p-4 bg-background-card rounded-lg flex-1 overflow-y-auto;
 }
 
 .grid-cell {
   aspect-ratio: 1;
-  min-height: 120px;
-  @apply bg-background-lighter rounded p-2 relative transition-colors;
+  @apply bg-background-lighter rounded-lg p-0 relative cursor-default transition-all duration-200 shadow-md overflow-hidden flex items-center justify-center;
+  min-height: 140px;
 }
 
 .creator-side {
@@ -150,8 +226,44 @@ export default {
   @apply cursor-default;
 }
 
+.cell-content {
+  @apply h-full w-full flex flex-col p-3 relative;
+}
+
+.cell-indicator {
+  @apply absolute -top-1 -right-1 z-10;
+}
+
+.creator-indicator, .player-indicator {
+  @apply text-[0.6rem] font-bold tracking-wider py-1 px-2 opacity-90 rounded-bl-lg;
+}
+
+.creator-indicator {
+  @apply bg-blue-600 text-white;
+}
+
+.player-indicator {
+  @apply bg-green-600 text-white;
+}
+
+.phrase {
+  @apply font-semibold mb-1 text-sm flex-grow flex items-center justify-center text-center px-1;
+}
+
+.punishment-box {
+  @apply mt-2 p-2 rounded-lg bg-background-card bg-opacity-50;
+}
+
+.punishment-label {
+  @apply text-[0.65rem] uppercase font-bold text-gray-400;
+}
+
+.punishment {
+  @apply text-xs italic text-gray-300;
+}
+
 .grid-cell.called {
-  @apply border-2;
+  @apply border-[3px] shadow-lg transform scale-[1.02];
 }
 
 .grid-cell.called.creator-side {
@@ -163,23 +275,86 @@ export default {
 }
 
 .grid-cell.completed {
-  @apply opacity-50;
+  @apply opacity-80 grayscale;
 }
 
-.cell-content {
-  @apply h-full flex flex-col justify-between;
-  font-size: 0.85rem;
+.completed-badge {
+  @apply absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-success bg-opacity-90 text-white px-3 py-1 rounded-full flex items-center justify-center gap-1 font-bold;
+  font-size: 0.7rem;
 }
 
-.phrase {
-  @apply font-medium mb-1;
+.voting-container {
+  @apply mt-2 p-1 rounded-lg bg-background-dark bg-opacity-40;
 }
 
-.punishment {
-  @apply text-xs italic text-gray-400;
+.btn-icon {
+  @apply p-2 rounded-full bg-background-lighter hover:bg-background-card transition-colors;
 }
 
-.completed-indicator {
-  @apply mt-2 text-xs text-center text-success;
+/* Legend styles */
+.grid-legend {
+  @apply flex justify-center items-center gap-6 py-3 bg-background-card rounded-lg mt-3;
+}
+
+.legend-item {
+  @apply flex items-center gap-2;
+}
+
+.legend-color {
+  @apply w-4 h-4 rounded;
+}
+
+.creator-legend {
+  @apply bg-blue-500 bg-opacity-30 border border-blue-500;
+}
+
+.player-legend {
+  @apply bg-green-500 bg-opacity-30 border border-green-500;
+}
+
+.legend-badge {
+  @apply bg-success text-white w-4 h-4 rounded-full flex items-center justify-center;
+}
+
+.legend-text {
+  @apply text-xs text-gray-300;
+}
+
+/* Media queries for responsive layout */
+@media (max-width: 768px) {
+  .grid-container {
+    height: calc(100vh - 250px);
+  }
+  
+  .grid-cell {
+    min-height: 100px;
+  }
+  
+  .phrase {
+    font-size: 0.75rem;
+  }
+  
+  .punishment {
+    font-size: 0.65rem;
+  }
+}
+
+/* Fullscreen styles for mobile */
+@media (max-width: 640px) {
+  .grid-container.fullscreen .punishment-grid {
+    grid-template-columns: repeat(2, 1fr);
+    grid-gap: 8px;
+  }
+  
+  .grid-container.fullscreen .grid-cell {
+    min-height: 120px;
+  }
+  
+  .grid-legend {
+    flex-direction: column;
+    align-items: flex-start;
+    padding-left: 16px;
+    gap: 2px;
+  }
 }
 </style>
