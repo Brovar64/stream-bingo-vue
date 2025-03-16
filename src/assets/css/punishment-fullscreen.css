@@ -1,0 +1,42 @@
+/* Global styles for fullscreen punishment grid mode */
+body.grid-fullscreen-active {
+  overflow: hidden;
+}
+
+/* Add a subtle transition for elements that might be affected by fullscreen mode */
+.card, .container {
+  transition: opacity 0.3s ease-in-out;
+}
+
+body.grid-fullscreen-active .card:not(:has(.fullscreen)),
+body.grid-fullscreen-active .container > *:not(:has(.fullscreen)) {
+  opacity: 0.1;
+  pointer-events: none;
+}
+
+/* Ensure the fullscreen grid is above everything else */
+.grid-container.fullscreen {
+  z-index: 9999;
+}
+
+/* Close button styles */
+.fullscreen-close {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: rgba(0, 0, 0, 0.5);
+  border: none;
+  color: white;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 10000;
+}
+
+.fullscreen-close:hover {
+  background: rgba(0, 0, 0, 0.7);
+}

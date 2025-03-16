@@ -27,6 +27,9 @@ import { ref, provide, onMounted } from 'vue'
 import Notification from '@/components/common/Notification.vue'
 import { useAuthStore } from '@/stores/auth'
 
+// Import punishment fullscreen CSS
+import '@/assets/css/punishment-fullscreen.css'
+
 export default {
   name: 'App',
   components: {
