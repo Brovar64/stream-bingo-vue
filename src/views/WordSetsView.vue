@@ -282,7 +282,7 @@ export default {
     
     // Save sets to local storage
     function saveSets(type) {
-      const storageKey = `${type.toLowerCase().replace(' ', '')}Sets`
+      const storageKey = `${type.toLowerCase().replaceAll(' ', '')}Sets`
       const sets = getSetsForType(type)
       localStorage.setItem(storageKey, JSON.stringify(sets))
     }
