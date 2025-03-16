@@ -1,3 +1,4 @@
+
 <template>
   <teleport to="body">
     <div v-show="visible" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
@@ -11,65 +12,29 @@
           </button>
         </div>
         
-        <!-- Word Set Editing -->
-        <div v-if="type === 'word'">
-          <div v-if="editing" class="mb-6">
-            <label class="block text-sm text-gray-400 mb-2">Edit Words</label>
-            <textarea 
-              v-model="wordInput" 
-              class="form-control w-full h-48 font-mono"
-              placeholder="Enter words here..."
-            ></textarea>
-          </div>
-          
-          <div v-else class="mb-6">
-            <div class="flex justify-between items-center mb-3">
-              <label class="block text-sm text-gray-400">All Words ({{ setWords.length }})</label>
-              <button 
-                @click="startEditing" 
-                class="text-primary hover:text-primary-light"
-              >
-                Edit Words
-              </button>
-            </div>
-            
-            <div class="bg-background-lighter p-3 rounded h-64 overflow-y-auto">
-              <div v-for="(word, index) in setWords" :key="index" class="mb-1">
-                {{ word }}
-              </div>
-            </div>
-          </div>
+        <div v-if="editing" class="mb-6">
+          <label class="block text-sm text-gray-400 mb-2">Edit Items</label>
+          <textarea 
+            v-model="itemInput" 
+            class="form-control w-full h-48 font-mono"
+            :placeholder="`Enter each ${type === 'word' ? 'word' : 'punishment'} on a new line`"
+          ></textarea>
         </div>
         
-        <!-- Punishment Set Editing -->
-        <div v-else>
-          <div v-if="editing" class="mb-6">
-            <label class="block text-sm text-gray-400 mb-2">Edit Phrase/Punishment Pairs</label>
-            <textarea 
-              v-model="punishmentInput" 
-              class="form-control w-full h-48 font-mono"
-              placeholder="Phrase|Punishment&#10;Another phrase|Another punishment"
-            ></textarea>
+        <div v-else class="mb-6">
+          <div class="flex justify-between items-center mb-3">
+            <label class="block text-sm text-gray-400">All Items ({{ setItems.length }})</label>
+            <button 
+              @click="startEditing" 
+              class="text-primary hover:text-primary-light"
+            >
+              Edit Items
+            </button>
           </div>
           
-          <div v-else class="mb-6">
-            <div class="flex justify-between items-center mb-3">
-              <label class="block text-sm text-gray-400">
-                All Entries ({{ setPunishments.length }})
-              </label>
-              <button 
-                @click="startEditing" 
-                class="text-primary hover:text-primary-light"
-              >
-                Edit Entries
-              </button>
-            </div>
-            
-            <div class="bg-background-lighter p-3 rounded h-64 overflow-y-auto">
-              <div v-for="(entry, index) in setPunishments" :key="index" class="mb-3 p-2 bg-background rounded">
-                <div class="font-medium">{{ entry.phrase }}</div>
-                <div class="text-sm italic text-gray-400">{{ entry.punishment }}</div>
-              </div>
+          <div class="bg-background-lighter p-3 rounded h-64 overflow-y-auto">
+            <div v-for="(item, index) in setItems" :key="index" class="mb-1">
+              {{ item }}
             </div>
           </div>
         </div>
@@ -90,9 +55,9 @@
           
           <div class="text-gray-400">
             <span class="font-bold">
-              {{ type === 'word' ? parsedWords.length : parsedPunishments.length }}
+              {{ parsedItems.length }}
             </span> 
-            {{ type === 'word' ? 'words' : 'entries' }}
+            items
           </div>
         </div>
         
@@ -108,7 +73,7 @@
             v-if="editing"
             @click="saveChanges" 
             class="btn btn-primary"
-            :disabled="type === 'word' ? parsedWords.length === 0 : parsedPunishments.length === 0"
+            :disabled="parsedItems.length === 0"
           >
             Save Changes
           </button>
@@ -136,12 +101,8 @@ export default {
       type: String,
       default: ''
     },
-    setWords: {
+    setItems: {
       type: Array,
-      default: () => []
-    },
-    setPunishments: {
-      type: Array, 
       default: () => []
     }
   },
@@ -151,8 +112,7 @@ export default {
   data() {
     return {
       editing: false,
-      wordInput: '',
-      punishmentInput: ''
+      itemInput: ''
     };
   },
   
@@ -170,29 +130,13 @@ export default {
       }
     },
     
-    parsedWords() {
-      if (!this.wordInput.trim()) return [];
-      return this.wordInput
+    parsedItems() {
+      if (!this.itemInput.trim()) return [];
+      
+      return this.itemInput
         .split('\n')
-        .map(word => word.trim())
-        .filter(word => word.length > 0);
-    },
-    
-    parsedPunishments() {
-      if (!this.punishmentInput.trim()) return [];
-      return this.punishmentInput
-        .split('\n')
-        .map(line => {
-          const parts = line.split('|');
-          if (parts.length === 2) {
-            return {
-              phrase: parts[0].trim(),
-              punishment: parts[1].trim()
-            };
-          }
-          return null;
-        })
-        .filter(entry => entry && entry.phrase && entry.punishment);
+        .map(item => item.trim())
+        .filter(item => item.length > 0);
     }
   },
   
@@ -206,21 +150,15 @@ export default {
     startEditing() {
       this.editing = true;
       
-      if (this.type === 'word') {
-        this.wordInput = this.setWords.join('\n');
-      } else {
-        this.punishmentInput = this.setPunishments
-          .map(entry => `${entry.phrase}|${entry.punishment}`)
-          .join('\n');
-      }
+      // Format items - all sets are now simple string arrays
+      this.itemInput = this.setItems.join('\n');
     },
     
     closeModal() {
       console.log('ViewEditModal closeModal called, editing:', this.editing);
       if (this.editing) {
         this.editing = false;
-        this.wordInput = '';
-        this.punishmentInput = '';
+        this.itemInput = '';
       } else {
         this.$emit('update:visible', false);
         this.$emit('cancel');
@@ -229,23 +167,15 @@ export default {
     
     saveChanges() {
       console.log('ViewEditModal saveChanges called');
-      if (this.type === 'word') {
-        if (this.parsedWords.length === 0) return;
-        this.$emit('save', {
-          type: this.type,
-          content: this.parsedWords
-        });
-      } else {
-        if (this.parsedPunishments.length === 0) return;
-        this.$emit('save', {
-          type: this.type,
-          content: this.parsedPunishments
-        });
-      }
+      if (this.parsedItems.length === 0) return;
+      
+      this.$emit('save', {
+        type: this.type,
+        content: this.parsedItems
+      });
       
       this.editing = false;
-      this.wordInput = '';
-      this.punishmentInput = '';
+      this.itemInput = '';
     },
     
     handleFileImport(event) {
@@ -254,11 +184,7 @@ export default {
       
       const reader = new FileReader();
       reader.onload = e => {
-        if (this.type === 'word') {
-          this.wordInput = e.target.result;
-        } else {
-          this.punishmentInput = e.target.result;
-        }
+        this.itemInput = e.target.result;
       };
       reader.onerror = () => {
         this.$emit('file-error', 'Failed to read file');
