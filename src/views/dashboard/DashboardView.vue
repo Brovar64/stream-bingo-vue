@@ -112,11 +112,11 @@
             </select>
           </div>
           
-          <div class="form-group" v-if="wordSets.length > 0">
+          <div class="form-group" v-if="wordSetStore.wordSets.length > 0">
             <label for="wordSet">Word Set (Optional)</label>
             <select id="wordSet" v-model="newRoom.wordSetId" class="form-control">
               <option value="">None (Add words manually)</option>
-              <option v-for="(set, index) in wordSets" :key="index" :value="index">
+              <option v-for="set in wordSetStore.wordSets" :key="set.id" :value="set.id">
                 {{ set.name }} ({{ set.items.length }} words)
               </option>
             </select>
@@ -287,6 +287,7 @@ import { useAuthStore } from '@/stores/auth'
 import { useRoomStore } from '@/stores/room'
 import { usePunishmentRoomStore } from '@/stores/punishment-room'
 import { useNotificationStore } from '@/stores/notification'
+import { useWordSetStore } from '@/stores/word-sets'
 
 export default {
   name: 'DashboardView',
@@ -296,6 +297,7 @@ export default {
     const roomStore = useRoomStore()
     const punishmentRoomStore = usePunishmentRoomStore()
     const notificationStore = useNotificationStore()
+    const wordSetStore = useWordSetStore()
     
     // State
     const activeTab = ref('classic') // 'classic' or 'punishment'
@@ -316,7 +318,6 @@ export default {
       wordSetId: ''
     })
     const userRooms = ref([])
-    const wordSets = ref([])
     
     // Punishment bingo state
     const newPunishmentRoom = ref({
@@ -336,31 +337,18 @@ export default {
       }
     })
     
-    // Load user's rooms on component mount
+    // Load user's rooms and word sets on component mount
     onMounted(async () => {
       loading.value = true
       
       // Load user's rooms
       userRooms.value = await roomStore.loadUserRooms()
       
-      // Load saved word sets
-      loadWordSets()
+      // Load word sets
+      await wordSetStore.loadWordSets()
       
       loading.value = false
     })
-    
-    // Load word sets from local storage
-    function loadWordSets() {
-      const storedSets = localStorage.getItem('wordSets')
-      if (storedSets) {
-        try {
-          wordSets.value = JSON.parse(storedSets)
-        } catch (error) {
-          console.error('Failed to parse word sets:', error)
-          wordSets.value = []
-        }
-      }
-    }
     
     // Load punishment rooms
     async function loadPunishmentRooms() {
@@ -455,10 +443,11 @@ export default {
       try {
         // Check if we need to use a word set
         let words = []
-        if (newRoom.value.wordSetId !== '') {
-          const setIndex = parseInt(newRoom.value.wordSetId)
-          if (!isNaN(setIndex) && wordSets.value[setIndex]) {
-            words = [...wordSets.value[setIndex].items]
+        if (newRoom.value.wordSetId) {
+          // Find the word set in our store
+          const selectedSet = wordSetStore.wordSets.find(set => set.id === newRoom.value.wordSetId)
+          if (selectedSet) {
+            words = [...selectedSet.items]
           }
         }
         
@@ -587,12 +576,12 @@ export default {
       universalRoomCode,
       newRoom,
       userRooms,
-      wordSets,
       username,
       isTestUser,
       punishmentLoading,
       punishmentRooms,
       newPunishmentRoom,
+      wordSetStore,
       handleUniversalJoinRoom,
       generateRandomCode,
       createRoom,
