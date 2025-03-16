@@ -386,7 +386,7 @@ export default {
       
       const set = creatorPunishmentSets.value[setIndex]
       
-      if (!set || !set.entries || set.entries.length === 0) {
+      if (!set || !set.items || set.items.length === 0) {
         notificationStore.showNotification('Selected set is empty', 'error')
         return
       }
@@ -410,10 +410,10 @@ export default {
       let successCount = 0
       let setIndex2 = 0
       
-      // Add entries to empty cells
-      for (let i = 0; i < Math.min(emptyCells.length, set.entries.length); i++) {
+      // Add items to empty cells
+      for (let i = 0; i < Math.min(emptyCells.length, set.items.length); i++) {
         const position = emptyCells[i]
-        const entry = set.entries[setIndex2++ % set.entries.length]
+        const entry = set.items[setIndex2++ % set.items.length]
         
         try {
           const result = await roomStore.addCell(position, entry.phrase, entry.punishment, 'left')
@@ -438,7 +438,7 @@ export default {
       
       const set = playerPunishmentSets.value[setIndex]
       
-      if (!set || !set.entries || set.entries.length === 0) {
+      if (!set || !set.items || set.items.length === 0) {
         notificationStore.showNotification('Selected set is empty', 'error')
         return
       }
@@ -462,10 +462,10 @@ export default {
       let successCount = 0
       let setIndex2 = 0
       
-      // Add entries to empty cells
-      for (let i = 0; i < Math.min(emptyCells.length, set.entries.length); i++) {
+      // Add items to empty cells
+      for (let i = 0; i < Math.min(emptyCells.length, set.items.length); i++) {
         const position = emptyCells[i]
-        const entry = set.entries[setIndex2++ % set.entries.length]
+        const entry = set.items[setIndex2++ % set.items.length]
         
         try {
           const result = await roomStore.addCell(position, entry.phrase, entry.punishment, 'right')
