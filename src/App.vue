@@ -9,16 +9,17 @@
       </div>
     </div>
 
-
     <!-- Global Notification Component -->
     <Notification />
     
     <!-- Main Content -->
-    <router-view v-slot="{ Component }">
-      <transition name="fade" mode="out-in">
-        <component :is="Component" />
-      </transition>
-    </router-view>
+    <div class="app-content-wrapper">
+      <router-view v-slot="{ Component }">
+        <transition name="fade" mode="out-in">
+          <component :is="Component" />
+        </transition>
+      </router-view>
+    </div>
   </div>
 </template>
 
@@ -65,6 +66,13 @@ export default {
 @tailwind components;
 @tailwind utilities;
 
+/* App content max width */
+.app-content-wrapper {
+  max-width: 1024px;
+  margin: 0 auto;
+  width: 100%;
+}
+
 /* Transition animations */
 .fade-enter-active,
 .fade-leave-active {
@@ -110,8 +118,21 @@ body {
   @apply bg-secondary hover:bg-secondary-dark text-white;
 }
 
+/* Modified container class with max width */
 .container {
-  @apply max-w-6xl mx-auto px-4 py-6;
+  @apply mx-auto px-4 py-6;
+  max-width: 1024px; /* Max width set to 1024px */
+}
+
+/* Sticky header styles */
+.sticky-header {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  background-color: theme('colors.background.dark');
+  border-bottom: 1px solid theme('colors.background.lighter');
+  width: 100%;
+  padding: 0.75rem 0;
 }
 
 .card {
