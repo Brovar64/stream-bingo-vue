@@ -1,5 +1,5 @@
 <template>
-  <div class="container py-8">
+  <div class="container">
     <!-- Loading state -->
     <div v-if="loading || !roomData" class="text-center py-16">
       <div class="spinner mx-auto mb-4"></div>
@@ -9,96 +9,127 @@
 
     <!-- Room management interface -->
     <div v-else>
-      <!-- Header section -->
-      <RoomHeader
-        :room-data="roomData"
-        :is-room-active="isRoomActive"
-        :is-room-setup="isRoomSetup"
-        :word-count="wordCount"
-        :required-words="requiredWords"
-        @start-game="startGame"
-        @reset-game="resetGame"
-        @copy-room-code="copyRoomCode"
-      />
+      <!-- Header section using StickyHeader -->
+      <StickyHeader
+        :title="`Punishment Room: ${roomData.id}`"
+        :status="roomData.status === 'active' ? 'Active' : 'Setup'"
+        :status-variant="roomData.status === 'active' ? 'success' : 'warning'"
+      >
+        <template #actions>
+          <!-- Room Code Display when room is active -->
+          <div v-if="isRoomActive" class="flex items-center bg-background-lighter px-3 py-2 rounded mr-3">
+            <div class="mr-3">
+              <div class="text-xs text-gray-400">Room Code:</div>
+              <div class="font-bold text-primary">{{ roomData.id }}</div>
+            </div>
+            <button
+                @click="copyRoomCode"
+                class="btn bg-primary hover:bg-primary-dark text-white text-sm py-1 px-2"
+                title="Copy room code to clipboard"
+            >
+              Copy
+            </button>
+          </div>
+
+          <router-link to="/dashboard" class="btn bg-background-lighter hover:bg-gray-700 text-white">
+            Back to Dashboard
+          </router-link>
+
+          <button
+              v-if="isRoomActive"
+              @click="resetGame"
+              class="btn bg-warning hover:bg-yellow-700 text-white"
+          >
+            Reset Game
+          </button>
+        </template>
+      </StickyHeader>
+      
+      <p class="subtitle">{{ roomData.gridHeight }} rows × 4 columns grid</p>
 
       <!-- Game statistics -->
-      <GameStats
-        v-if="isRoomActive"
-        :players-count="roomData.players?.length || 0"
-        :pending-approvals-count="roomData.pendingApprovals?.length || 0"
-        :winners-count="roomData.bingoWinners?.length || 0"
-      />
+      <div v-if="isRoomActive" class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+        <BaseCard padding="small">
+          <h3 class="text-gray-400 text-sm mb-1">Players</h3>
+          <div class="text-2xl font-bold">{{ roomData.players?.length || 0 }}</div>
+        </BaseCard>
+        <BaseCard padding="small">
+          <h3 class="text-gray-400 text-sm mb-1">Called Cells</h3>
+          <div class="text-2xl font-bold">{{ roomData.calledOutCells?.length || 0 }}</div>
+        </BaseCard>
+        <BaseCard padding="small">
+          <h3 class="text-gray-400 text-sm mb-1">Completed Punishments</h3>
+          <div class="text-2xl font-bold">{{ roomData.completedPunishments?.length || 0 }}</div>
+        </BaseCard>
+      </div>
 
-      <!-- Setup Mode Content -->
-      <SetupModePanel
-        v-if="isRoomSetup"
-        :words="roomData.words || []"
-        :required-words="requiredWords"
-        :grid-size="roomData.gridSize"
-        :no-word-sets="wordSetStore.wordSets.length === 0"
-        @add-word="addWord"
-        @remove-word="removeWord"
-        @open-import-modal="showImportModal = true"
-        @open-paste-modal="showPasteModal = true"
-      />
-
-      <!-- Active Game Content - Two Column Layout -->
-      <div v-if="isRoomActive" class="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        <!-- Left Column: Players -->
+      <!-- Setup Mode Content - using a two-column layout -->
+      <div v-if="isRoomSetup" class="grid grid-cols-1 lg:grid-cols-4 gap-6">
+        <!-- Left Column (3/4): Grid Setup -->
         <div class="lg:col-span-3">
-          <PlayersList
-            :players="roomData.players || []"
-            :player-grids="roomData.playerGrids || {}"
-            :winners="roomData.bingoWinners || []"
-            :selected-player="selectedPlayer"
-            :grid-size="roomData.gridSize"
-            @player-selected="selectedPlayer = $event"
+          <PunishmentGridEditor
+              :grid-height="roomData.gridHeight"
+              :grid="roomData.grid || {}"
+              @edit-cell="editCell"
+              @remove-cell="removeCell"
           />
         </div>
 
-        <!-- Right Column: Bingo Words and Approvals -->
-        <div class="lg:col-span-9">
-          <!-- Words List in Grid Layout -->
-          <BingoWordsGrid
-            :words="filteredAndSortedWords"
-            :called-out-words="roomData.calledOutWords || []"
-            :pending-approvals="roomData.pendingApprovals || []"
-            :total-words="wordCount"
-            :sort-by="sortBy"
-            :sort-order="sortOrder"
-            @toggle-word-called-out="callOutWord"
-            @reset-called-words="resetCalledWords"
-            @approve-word="approveWord"
-            @reject-word="rejectWord"
-            @sort-change="handleSortChange"
-            @search-change="searchQuery = $event"
+        <!-- Right Column (1/4): Setup Controls -->
+        <div class="lg:col-span-1">
+          <RoomSetupPanel
+            :grid="roomData.grid || {}"
+            :required-cells="requiredCells"
+            :grid-height="roomData.gridHeight"
+            :word-sets="wordSetStore.wordSets"
+            :creator-punishment-sets="wordSetStore.creatorPunishmentSets"
+            :player-punishment-sets="wordSetStore.playerPunishmentSets"
+            :selected-word-set="selectedWordSet"
+            :selected-creator-set="selectedCreatorSet"
+            :selected-player-set="selectedPlayerSet"
+            :new-cell="newCell"
+            @word-set-select="selectedWordSet = $event"
+            @creator-set-select="selectedCreatorSet = $event"
+            @player-set-select="selectedPlayerSet = $event"
+            @apply-word-set="applyWordSetToSide"
+            @apply-creator-set="applyCreatorSet"
+            @apply-player-set="applyPlayerSet"
+            @add-cell="addManualCell"
+            @update-new-cell="newCell = $event"
+            @start-game="startGame"
           />
+        </div>
+      </div>
 
-          <!-- Bingo Winners List -->
-          <WinnersPanel
-            :winners="roomData.bingoWinners || []"
-            :selected-player="selectedPlayer"
-            @player-selected="selectedPlayer = $event"
+      <!-- Active Game Content -->
+      <div v-if="isRoomActive" class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        <!-- Left Column: Players -->
+        <div class="lg:col-span-3">
+          <PunishmentPlayerList :players="roomData.players || []" />
+        </div>
+
+        <!-- Right Column: Bingo Grid -->
+        <div class="lg:col-span-9">
+          <ActivePunishmentGrid
+              :grid-height="roomData.gridHeight"
+              :grid="roomData.grid || {}"
+              :called-out-cells="roomData.calledOutCells || []"
+              :completed-punishments="roomData.completedPunishments || []"
+              @call-out="handleCellClick"
+              @resolve-punishment="resolvePunishment"
           />
         </div>
       </div>
     </div>
-
-    <!-- Word Set Importer Modal -->
-    <WordSetImporter
-      v-model:visible="showImportModal"
-      :word-sets="wordSetStore.wordSets"
-      @import-set="importSet"
-    />
-
-    <!-- Multi Words Paste Modal -->
-    <MultiWordsPaste
-      v-if="showPasteModal"
-      v-model="multipleWords"
-      :parsed-words="parsedWords"
-      @close="showPasteModal = false"
-      @add-words="addMultipleWords"
-      @error="handleImportError"
+    
+    <!-- Cell Edit Modal -->
+    <PunishmentCellEditor
+        v-model:visible="showEditModal"
+        :cell="editingCell"
+        :position="editingCellPosition"
+        :side="editingCellSide"
+        @save="saveCell"
+        @cancel="cancelEdit"
     />
   </div>
 </template>
@@ -106,38 +137,32 @@
 <script>
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { useRoomStore } from '@/stores/room/'
+import { usePunishmentRoomStore } from '@/stores/punishment-room'
 import { useNotificationStore } from '@/stores/notification'
 import { useWordSetStore } from '@/stores/word-sets'
-
-// Import existing components
-import MultiWordsPaste from '@/components/bingo/MultiWordsPaste.vue'
-
-// Import new components
-import RoomHeader from '@/components/admin/RoomHeader.vue'
-import GameStats from '@/components/admin/GameStats.vue'
-import SetupModePanel from '@/components/admin/SetupModePanel.vue'
-import PlayersList from '@/components/admin/PlayersList.vue'
-import BingoWordsGrid from '@/components/admin/BingoWordsGrid.vue'
-import WinnersPanel from '@/components/admin/WinnersPanel.vue'
-import WordSetImporter from '@/components/admin/WordSetImporter.vue'
+import PunishmentGridEditor from '@/components/punishment/PunishmentGridEditor.vue'
+import ActivePunishmentGrid from '@/components/punishment/ActivePunishmentGrid.vue'
+import PunishmentCellEditor from '@/components/punishment/PunishmentCellEditor.vue'
+import PunishmentPlayerList from '@/components/punishment/PunishmentPlayerList.vue'
+import StickyHeader from '@/components/common/StickyHeader.vue'
+import BaseCard from '@/components/base/BaseCard.vue'
+import RoomSetupPanel from '@/components/punishment/RoomSetupPanel.vue'
 
 export default {
   name: 'AdminRoomView',
   components: {
-    RoomHeader,
-    GameStats,
-    SetupModePanel,
-    PlayersList,
-    BingoWordsGrid,
-    WinnersPanel,
-    WordSetImporter,
-    MultiWordsPaste
+    PunishmentGridEditor,
+    ActivePunishmentGrid,
+    PunishmentCellEditor,
+    PunishmentPlayerList,
+    StickyHeader,
+    BaseCard,
+    RoomSetupPanel
   },
   setup() {
     const route = useRoute()
     const router = useRouter()
-    const roomStore = useRoomStore()
+    const roomStore = usePunishmentRoomStore()
     const notificationStore = useNotificationStore()
     const wordSetStore = useWordSetStore()
 
@@ -146,80 +171,41 @@ export default {
 
     // State
     const loading = ref(true)
-    const newWord = ref('')
-    const selectedPlayer = ref(null)
-    const showImportModal = ref(false)
-    const showPasteModal = ref(false)
-    const multipleWords = ref('')
-    const selectedSetId = ref('')
+    const showEditModal = ref(false)
+    const editingCell = ref(null)
+    const editingCellPosition = ref({ row: 0, col: 0 })
+    const editingCellSide = ref('left')
 
-    // Search and sort state
-    const searchQuery = ref('')
-    const sortBy = ref('alphabetical') // 'alphabetical' or 'calledOut'
-    const sortOrder = ref('asc') // 'asc' or 'desc'
+    const newCell = ref({
+      phrase: '',
+      punishment: '',
+      row: 0,
+      col: 0,
+      side: 'left'
+    })
+
+    // Sets selection
+    const selectedWordSet = ref('')
+    const selectedCreatorSet = ref('')
+    const selectedPlayerSet = ref('')
 
     // Computed properties
     const roomData = computed(() => roomStore.currentRoom)
     const isRoomSetup = computed(() => roomStore.isRoomSetup)
     const isRoomActive = computed(() => roomStore.isRoomActive)
-    const wordCount = computed(() => roomData.value?.words?.length || 0)
-    const requiredWords = computed(() => roomStore.requiredWords)
-    const calledOutWordsCount = computed(() => roomData.value?.calledOutWords?.length || 0)
+    const requiredCells = computed(() => roomStore.requiredCells)
 
-    // Filtered and sorted words
-    const filteredAndSortedWords = computed(() => {
-      if (!roomData.value?.words) return []
-
-      // First filter by search query
-      let result = [...roomData.value.words]
-
-      if (searchQuery.value.trim()) {
-        const query = searchQuery.value.toLowerCase().trim()
-        result = result.filter(word =>
-            word.toLowerCase().includes(query)
-        )
-      }
-
-      // Then sort
-      if (sortBy.value === 'alphabetical') {
-        result.sort((a, b) => {
-          return sortOrder.value === 'asc'
-              ? a.localeCompare(b)
-              : b.localeCompare(a)
-        })
-      } else if (sortBy.value === 'calledOut') {
-        result.sort((a, b) => {
-          const aCalledOut = isWordCalledOut(a)
-          const bCalledOut = isWordCalledOut(b)
-
-          if (aCalledOut === bCalledOut) return 0
-
-          if (sortOrder.value === 'asc') {
-            return aCalledOut ? -1 : 1
-          } else {
-            return aCalledOut ? 1 : -1
-          }
-        })
-      }
-
-      return result
-    })
-
-    const parsedWords = computed(() => {
-      if (!multipleWords.value.trim()) return []
-      return multipleWords.value
-          .split('\n')
-          .map(word => word.trim())
-          .filter(word => word.length > 0)
-    })
-
-    // Load room data on component mount
+    // Load room data and word sets on component mount
     onMounted(async () => {
       loading.value = true
 
       try {
+        // Load the room
         await roomStore.loadRoom(roomId)
+
+        // Load word sets
         await wordSetStore.loadWordSets()
+
         loading.value = false
       } catch (error) {
         console.error('Error loading room:', error)
@@ -228,147 +214,449 @@ export default {
       }
     })
 
-    // Handle import errors
-    function handleImportError(message) {
-      notificationStore.showNotification(message, 'error')
-    }
+    // Edit a cell
+    function editCell({row, col, side}) {
+      const cellId = `${row}_${col}`
+      const existingCell = roomData.value?.grid?.[cellId]
 
-    // Import words from a saved word set
-    async function importSet(setId) {
-      if (!setId) return
+      editingCellPosition.value = { row, col }
+      editingCellSide.value = side
 
-      const selectedSet = wordSetStore.wordSets.find(set => set.id === setId)
-      if (!selectedSet || !selectedSet.items || selectedSet.items.length === 0) {
-        notificationStore.showNotification('Selected word set is empty', 'error')
-        return
+      if (existingCell) {
+        // Edit existing cell
+        editingCell.value = existingCell
+      } else {
+        // Add new cell
+        editingCell.value = null
       }
 
-      // Add words from the set
-      const result = await roomStore.addMultipleWords(selectedSet.items)
-
-      if (result) {
-        notificationStore.showNotification(`Imported ${selectedSet.items.length} words from "${selectedSet.name}"`, 'success')
-        showImportModal.value = false
-        selectedSetId.value = ''
-      }
+      showEditModal.value = true
     }
 
-    // Add multiple words at once
-    async function addMultipleWords(words) {
-      if (!words || words.length === 0) return
-
-      const result = await roomStore.addMultipleWords(words)
-
-      if (result) {
-        notificationStore.showNotification(`Added ${words.length} words`, 'success')
-        multipleWords.value = ''
-        showPasteModal.value = false
-      }
+    // Cancel editing
+    function cancelEdit() {
+      showEditModal.value = false
+      editingCell.value = null
     }
 
-    // Call out a word
-    function callOutWord(word) {
-      // Mark this word as called out for all players
-      roomStore.markWordForAllPlayers(word)
-    }
+    // Save cell
+    async function saveCell(cellData) {
+      try {
+        const result = await roomStore.addCell(
+            cellData.position,
+            cellData.phrase,
+            cellData.punishment,
+            cellData.side
+        )
 
-    // Reset called out words
-    function resetCalledWords() {
-      // Reset all called out words
-      roomStore.resetCalledOutWords()
-    }
-
-    // Check if a word is called out
-    function isWordCalledOut(word) {
-      return roomData.value?.calledOutWords?.includes(word) || false
-    }
-
-    // Handle sort change
-    function handleSortChange({ sortBy: newSortBy, sortOrder: newSortOrder }) {
-      sortBy.value = newSortBy
-      sortOrder.value = newSortOrder
-    }
-
-    // Approve a player's mark
-    async function approveWord(approval) {
-      const index = getApprovalIndex(approval)
-      if (index >= 0) {
-        await roomStore.approvePlayerMark(index)
+        if (result.success) {
+          notificationStore.showNotification('Cell saved successfully', 'success')
+          showEditModal.value = false
+        } else {
+          notificationStore.showNotification(result.error, 'error')
+        }
+      } catch (error) {
+        console.error('Error saving cell:', error)
+        notificationStore.showNotification('Error saving cell', 'error')
       }
     }
 
-    // Reject a player's mark
-    async function rejectWord(approval) {
-      const index = getApprovalIndex(approval)
-      if (index >= 0) {
-        await roomStore.rejectPlayerMark(index)
+    // Add a cell through the form
+    async function addManualCell() {
+      const position = { row: newCell.value.row, col: newCell.value.col }
+      const { phrase, punishment, side } = newCell.value
+
+      // Handle column positioning based on side
+      if (side === 'left' && position.col > 1) {
+        position.col = 0
+      } else if (side === 'right' && position.col < 2) {
+        position.col = 2
+      }
+
+      try {
+        const result = await roomStore.addCell(position, phrase, punishment, side)
+
+        if (result.success) {
+          notificationStore.showNotification('Cell added successfully', 'success')
+          // Clear form
+          newCell.value.phrase = ''
+          newCell.value.punishment = ''
+        } else {
+          notificationStore.showNotification(result.error, 'error')
+        }
+      } catch (error) {
+        console.error('Error adding cell:', error)
+        notificationStore.showNotification('Error adding cell', 'error')
       }
     }
 
-    // Get the index of an approval in the pendingApprovals array
-    function getApprovalIndex(approval) {
-      if (!roomData.value?.pendingApprovals) return -1
-      return roomData.value.pendingApprovals.findIndex(a =>
-          a.playerName === approval.playerName &&
-          a.word === approval.word &&
-          a.row === approval.row &&
-          a.col === approval.col)
-    }
+    // Apply word set (bingo words) to a specific side (left or right)
+    async function applyWordSetToSide(side) {
+      if (!selectedWordSet.value) return
 
-    // Cleanup on component unmount
-    onUnmounted(() => {
-      roomStore.cleanup()
-    })
+      try {
+        console.log(`Applying word set to ${side} side:`, selectedWordSet.value);
 
-    // Add a word to the list
-    async function addWord(word) {
-      if (!word.trim()) return
+        // Find the selected set in our store
+        const selectedSet = wordSetStore.wordSets.find(
+            set => set.id === selectedWordSet.value
+        );
 
-      const success = await roomStore.addWord(word.trim())
+        if (!selectedSet) {
+          throw new Error('Selected word set not found');
+        }
 
-      if (success) {
-        newWord.value = '' // Clear input on success
+        console.log("Found word set:", selectedSet.name, "with", selectedSet.items.length, "items");
+
+        if (!selectedSet.items || selectedSet.items.length === 0) {
+          throw new Error('Selected word set is empty');
+        }
+
+        // Find cells on the specified side
+        const cells = [];
+        for (let row = 0; row < roomData.value.gridHeight; row++) {
+          for (let col = (side === 'left' ? 0 : 2); col < (side === 'left' ? 2 : 4); col++) {
+            const cellId = `${row}_${col}`;
+            // Include all cells on this side - we'll update only the phrase part
+            cells.push({
+              row,
+              col,
+              existing: roomData.value.grid?.[cellId]
+            });
+          }
+        }
+
+        if (cells.length === 0) {
+          throw new Error(`No cells available on ${side} side`);
+        }
+
+        console.log("Found", cells.length, "cells on", side, "side");
+
+        // Shuffle the words for randomness
+        const shuffledWords = [...selectedSet.items].sort(() => Math.random() - 0.5);
+
+        let successCount = 0;
+
+        // For each cell, keep the existing punishment (if any) but update the phrase
+        for (let i = 0; i < Math.min(cells.length, shuffledWords.length); i++) {
+          const cell = cells[i];
+
+          // If there's an existing cell, get its punishment. Otherwise, use default
+          let punishment = "Do nothing (phrase only)";
+          if (cell.existing && cell.existing.punishment) {
+            punishment = cell.existing.punishment;
+          }
+
+          const phrase = shuffledWords[i];
+
+          console.log("Updating cell at position", cell, "phrase:", phrase, "existing punishment:", punishment);
+
+          const result = await roomStore.addCell(
+              { row: cell.row, col: cell.col },
+              phrase,
+              punishment,
+              side
+          );
+
+          if (result.success) {
+            successCount++;
+          } else {
+            console.error('Error adding word to cell:', result.error);
+          }
+        }
+
+        if (successCount > 0) {
+          notificationStore.showNotification(`Added/updated ${successCount} phrases on ${side} side`, 'success');
+          selectedWordSet.value = ''; // Reset selection
+        } else {
+          throw new Error('Failed to add any phrases');
+        }
+      } catch (error) {
+        console.error('Error applying word set:', error);
+        notificationStore.showNotification(
+            `Error applying word set: ${error.message}`,
+            'error'
+        );
       }
     }
 
-    // Remove a word from the list
-    async function removeWord(index) {
-      await roomStore.removeWord(index)
+    // Apply creator punishment set
+    async function applyCreatorSet() {
+      if (!selectedCreatorSet.value) return
+
+      try {
+        console.log("Applying creator set:", selectedCreatorSet.value);
+
+        // Find the selected set in our store
+        const selectedSet = wordSetStore.creatorPunishmentSets.find(
+            set => set.id === selectedCreatorSet.value
+        );
+
+        if (!selectedSet) {
+          throw new Error('Selected set not found');
+        }
+
+        console.log("Found set:", selectedSet.name, "with", selectedSet.items.length, "items");
+
+        if (!selectedSet.items || selectedSet.items.length === 0) {
+          throw new Error('Selected set is empty');
+        }
+
+        // Find cells on the creator side
+        const cells = [];
+        for (let row = 0; row < roomData.value.gridHeight; row++) {
+          for (let col = 0; col < 2; col++) {
+            const cellId = `${row}_${col}`;
+            // Include all cells on creator side - we'll update only the punishment part
+            cells.push({
+              row,
+              col,
+              existing: roomData.value.grid?.[cellId]
+            });
+          }
+        }
+
+        if (cells.length === 0) {
+          throw new Error('No cells available on creator side');
+        }
+
+        console.log("Found", cells.length, "cells");
+
+        // Shuffle the punishments for randomness
+        const shuffledItems = [...selectedSet.items].sort(() => Math.random() - 0.5);
+
+        let successCount = 0;
+
+        // Update punishments in cells, keeping phrases intact
+        for (let i = 0; i < Math.min(cells.length, shuffledItems.length); i++) {
+          const cell = cells[i];
+          const punishment = shuffledItems[i];
+
+          // Get existing phrase or use a placeholder if cell doesn't exist yet
+          let phrase = "Bingo phrase";
+          if (cell.existing && cell.existing.phrase) {
+            phrase = cell.existing.phrase;
+          }
+
+          console.log("Updating cell punishment at position", cell, "punishment:", punishment, "existing phrase:", phrase);
+
+          const result = await roomStore.addCell(
+              { row: cell.row, col: cell.col },
+              phrase,
+              punishment,
+              'left'
+          );
+
+          if (result.success) {
+            successCount++;
+          } else {
+            console.error('Error updating cell punishment:', result.error);
+          }
+        }
+
+        if (successCount > 0) {
+          notificationStore.showNotification(`Updated ${successCount} creator punishments`, 'success');
+          selectedCreatorSet.value = ''; // Reset selection
+        } else {
+          throw new Error('Failed to update any punishments');
+        }
+      } catch (error) {
+        console.error('Error applying creator set:', error);
+        notificationStore.showNotification(
+            `Error applying creator set: ${error.message}`,
+            'error'
+        );
+      }
+    }
+
+    // Apply player punishment set
+    async function applyPlayerSet() {
+      if (!selectedPlayerSet.value) return
+
+      try {
+        console.log("Applying player set:", selectedPlayerSet.value);
+
+        // Find the selected set in our store
+        const selectedSet = wordSetStore.playerPunishmentSets.find(
+            set => set.id === selectedPlayerSet.value
+        );
+
+        if (!selectedSet) {
+          throw new Error('Selected set not found');
+        }
+
+        console.log("Found set:", selectedSet.name, "with", selectedSet.items.length, "items");
+
+        if (!selectedSet.items || selectedSet.items.length === 0) {
+          throw new Error('Selected set is empty');
+        }
+
+        // Find cells on the player side
+        const cells = [];
+        for (let row = 0; row < roomData.value.gridHeight; row++) {
+          for (let col = 2; col < 4; col++) {
+            const cellId = `${row}_${col}`;
+            // Include all cells on player side - we'll update only the punishment part
+            cells.push({
+              row,
+              col,
+              existing: roomData.value.grid?.[cellId]
+            });
+          }
+        }
+
+        if (cells.length === 0) {
+          throw new Error('No cells available on player side');
+        }
+
+        console.log("Found", cells.length, "cells");
+
+        // Shuffle the punishments for randomness
+        const shuffledItems = [...selectedSet.items].sort(() => Math.random() - 0.5);
+
+        let successCount = 0;
+
+        // Update punishments in cells, keeping phrases intact
+        for (let i = 0; i < Math.min(cells.length, shuffledItems.length); i++) {
+          const cell = cells[i];
+          const punishment = shuffledItems[i];
+
+          // Get existing phrase or use a placeholder if cell doesn't exist yet
+          let phrase = "Bingo phrase";
+          if (cell.existing && cell.existing.phrase) {
+            phrase = cell.existing.phrase;
+          }
+
+          console.log("Updating cell punishment at position", cell, "punishment:", punishment, "existing phrase:", phrase);
+
+          const result = await roomStore.addCell(
+              { row: cell.row, col: cell.col },
+              phrase,
+              punishment,
+              'right'
+          );
+
+          if (result.success) {
+            successCount++;
+          } else {
+            console.error('Error updating cell punishment:', result.error);
+          }
+        }
+
+        if (successCount > 0) {
+          notificationStore.showNotification(`Updated ${successCount} player punishments`, 'success');
+          selectedPlayerSet.value = ''; // Reset selection
+        } else {
+          throw new Error('Failed to update any punishments');
+        }
+      } catch (error) {
+        console.error('Error applying player set:', error);
+        notificationStore.showNotification(
+            `Error applying player set: ${error.message}`,
+            'error'
+        );
+      }
+    }
+
+    // Remove a cell
+    async function removeCell(cellId) {
+      if (confirm('Are you sure you want to remove this cell?')) {
+        try {
+          const result = await roomStore.removeCell(cellId)
+
+          if (result.success) {
+            notificationStore.showNotification('Cell removed', 'success')
+          } else {
+            notificationStore.showNotification(result.error, 'error')
+          }
+        } catch (error) {
+          console.error('Error removing cell:', error)
+          notificationStore.showNotification('Error removing cell', 'error')
+        }
+      }
     }
 
     // Start the game
     async function startGame() {
-      if (wordCount.value < requiredWords.value) {
+      const cellCount = Object.keys(roomData.value?.grid || {}).length
+
+      if (cellCount < requiredCells.value) {
         notificationStore.showNotification(
-            `You need ${requiredWords.value} words to start the game`,
+            `You need ${requiredCells.value} cells to start the game`,
             'warning'
         )
         return
       }
 
-      const success = await roomStore.startGame()
+      try {
+        const result = await roomStore.startGame()
 
-      if (success) {
-        notificationStore.showNotification('Game started successfully!', 'success')
+        if (result.success) {
+          notificationStore.showNotification('Game started successfully!', 'success')
+        } else {
+          notificationStore.showNotification(result.error, 'error')
+        }
+      } catch (error) {
+        console.error('Error starting game:', error)
+        notificationStore.showNotification('Error starting game', 'error')
       }
     }
 
     // Reset the game
     async function resetGame() {
-      if (confirm('Are you sure you want to reset the game? This will clear all player grids and marks.')) {
-        const success = await roomStore.resetGame()
+      if (confirm('Are you sure you want to reset the game? This will clear all called cells and votes.')) {
+        try {
+          const result = await roomStore.resetGame()
 
-        if (success) {
-          notificationStore.showNotification('Game reset to setup mode', 'success')
+          if (result.success) {
+            notificationStore.showNotification('Game reset to setup mode', 'success')
+          } else {
+            notificationStore.showNotification(result.error, 'error')
+          }
+        } catch (error) {
+          console.error('Error resetting game:', error)
+          notificationStore.showNotification('Error resetting game', 'error')
         }
       }
     }
 
-    // Copy room code to clipboard
-    function copyRoomCode(roomId) {
-      if (!roomId) return
+    // Handle cell click in active mode
+    async function handleCellClick(cellId) {
+      try {
+        const result = await roomStore.markCellCompleted(cellId)
 
-      navigator.clipboard.writeText(roomId)
+        if (result.success) {
+          notificationStore.showNotification('Cell marked as completed', 'success')
+        } else {
+          notificationStore.showNotification(result.error, 'error')
+        }
+      } catch (error) {
+        console.error('Error marking cell:', error)
+        notificationStore.showNotification('Error marking cell', 'error')
+      }
+    }
+
+    // Resolve a punishment
+    async function resolvePunishment(cellId, completed) {
+      try {
+        const result = await roomStore.resolvePunishment(cellId, completed)
+
+        if (result.success) {
+          notificationStore.showNotification('Punishment resolved', 'success')
+        } else {
+          notificationStore.showNotification(result.error, 'error')
+        }
+      } catch (error) {
+        console.error('Error resolving punishment:', error)
+        notificationStore.showNotification('Error resolving punishment', 'error')
+      }
+    }
+
+    // Copy room code to clipboard
+    function copyRoomCode() {
+      if (!roomData.value?.id) return
+
+      navigator.clipboard.writeText(roomData.value.id)
           .then(() => {
             notificationStore.showNotification('Room code copied to clipboard', 'success')
           })
@@ -378,40 +666,40 @@ export default {
           })
     }
 
+    // Cleanup on component unmount
+    onUnmounted(() => {
+      roomStore.cleanup()
+    })
+
     return {
       loading,
       roomData,
-      newWord,
-      selectedPlayer,
-      showImportModal,
-      showPasteModal,
-      multipleWords,
-      wordSetStore,
-      selectedSetId,
-      parsedWords,
+      roomId,
       isRoomSetup,
       isRoomActive,
-      wordCount,
-      requiredWords,
-      calledOutWordsCount,
-      searchQuery,
-      sortBy,
-      sortOrder,
-      filteredAndSortedWords,
-      addWord,
-      removeWord,
+      requiredCells,
+      showEditModal,
+      editingCell,
+      editingCellPosition,
+      editingCellSide,
+      newCell,
+      selectedWordSet,
+      selectedCreatorSet,
+      selectedPlayerSet,
+      wordSetStore,
+      editCell,
+      cancelEdit,
+      saveCell,
+      addManualCell,
+      applyWordSetToSide,
+      applyCreatorSet,
+      applyPlayerSet,
+      removeCell,
       startGame,
       resetGame,
-      approveWord,
-      rejectWord,
-      copyRoomCode,
-      handleImportError,
-      importSet,
-      addMultipleWords,
-      callOutWord,
-      resetCalledWords,
-      isWordCalledOut,
-      handleSortChange
+      handleCellClick,
+      resolvePunishment,
+      copyRoomCode
     }
   }
 }
